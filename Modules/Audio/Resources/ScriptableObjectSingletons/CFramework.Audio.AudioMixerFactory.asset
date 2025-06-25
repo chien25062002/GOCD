@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1999cba0249be3b41be8f3ad4c4a5b29, type: 3}
+  m_Name: CFramework.Audio.AudioMixerFactory
+  m_EditorClassIdentifier: 
+  _mappings:
+  - type: 1
+    group: {fileID: 24300002, guid: 90f5f873c1de8eb4ab830b269acaa480, type: 2}
+  - type: 2
+    group: {fileID: -5357916086469550714, guid: 90f5f873c1de8eb4ab830b269acaa480, type: 2}
+  - type: 3
+    group: {fileID: -3359195394459708083, guid: 90f5f873c1de8eb4ab830b269acaa480, type: 2}
+  - type: 4
+    group: {fileID: -7417494220774968873, guid: 90f5f873c1de8eb4ab830b269acaa480, type: 2}
+  - type: 5
+    group: {fileID: 8615513799342064205, guid: 90f5f873c1de8eb4ab830b269acaa480, type: 2}
+  - type: 6
+    group: {fileID: 1697392617452219322, guid: 90f5f873c1de8eb4ab830b269acaa480, type: 2}
