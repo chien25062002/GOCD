@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "displayName": "GOCD Framework",
   "description": "A lightweight and extensible framework to simplify game development in Unity.",
-  "unity": "2022.3.14f1",
+  "unity": "2020.1",
   "author": {
-    "name": "GOCD",
+    "name": "Saiken",
     "url": "https://github.com/chien25062002/GOCD"
   }
 }
