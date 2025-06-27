@@ -7,8 +7,5 @@
   "author": {
     "name": "GOCD",
     "url": "https://github.com/chien25062002/GOCD"
-  },
-  "dependencies": {
-    "com.primetween.core": "https://github.com/KyryloKuzyk/PrimeTween.git"
   }
 }
