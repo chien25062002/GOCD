@@ -5,7 +5,10 @@
   "description": "A lightweight and extensible framework to simplify game development in Unity.",
   "unity": "2020.1",
   "author": {
-    "name": "Saiken",
+    "name": "GOCD",
     "url": "https://github.com/chien25062002/GOCD"
+  },
+  "dependencies": {
+    "com.primetween.core": "https://github.com/KyryloKuzyk/PrimeTween.git"
   }
 }
