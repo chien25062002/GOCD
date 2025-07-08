@@ -21,9 +21,9 @@ namespace GOCD.Framework.Editor
             List<string> assemblyNames = new List<string>();
             
             assemblyNames.Add("Assembly-CSharp");
-            assemblyNames.Add("CFramework");
-            assemblyNames.Add("CFramework.Runtime");
-            assemblyNames.Add("CFramework.Module");
+            assemblyNames.Add("GOCD");
+            assemblyNames.Add("GOCD.Framework");
+            assemblyNames.Add("GOCD.Framework.Module");
             
             string folderPath = Path.Combine(Application.dataPath, "_Game/"); // Đường dẫn tới thư mục Game
             assemblyNames.AddRange(LoadAssembliesFromFolder(folderPath));
