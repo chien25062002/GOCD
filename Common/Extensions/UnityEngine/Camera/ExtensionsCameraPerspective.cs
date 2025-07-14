@@ -77,5 +77,16 @@ namespace GOCD.Framework
             float height = width / camera.aspect;
             return FOVFitHeightAtDistance(camera, height, distance);
         }
+
+        /// <summary>
+        /// Trả về vị trí cách camera một khoảng `distance` theo hướng nhìn (forward)
+        /// </summary>
+        /// <param name="camera">Camera nguồn</param>
+        /// <param name="distance">Khoảng cách</param>
+        /// <returns>Vị trí trong thế giới</returns>
+        public static Vector3 GetPointInViewDirection(this Camera camera, float distance)
+        {
+            return camera.transform.position + camera.transform.forward * distance;
+        }
     }
 }
