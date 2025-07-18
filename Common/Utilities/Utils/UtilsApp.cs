@@ -153,21 +153,44 @@ namespace GOCD.Framework
             return RandomFloat(0, 100) < probabilityPercent;
         }
 
-        /// <summary>Trả về index ngẫu nhiên dựa trên mảng xác suất.</summary>
-        public static int RandomWithProbably(float[] probablys)
-        {
-            float sum = 0;
-            foreach (float prob in probablys) sum += prob;
+        // /// <summary>Trả về index ngẫu nhiên dựa trên mảng xác suất.</summary>
+        // public static int RandomWithProbably(float[] probablys)
+        // {
+        //     float sum = 0;
+        //     foreach (float prob in probablys) sum += prob;
+        //
+        //     float value = RandomFloat(0, sum - 0.0001f);
+        //     float acc = 0;
+        //     for (int i = 0; i < probablys.Length; i++)
+        //     {
+        //         acc += probablys[i];
+        //         if (value < acc)
+        //             return i;
+        //     }
+        //     return 0;
+        // }
 
-            float value = RandomFloat(0, sum - 0.0001f);
-            float acc = 0;
-            for (int i = 0; i < probablys.Length; i++)
+        /// <summary>Trả về index ngẫu nhiên dựa trên mảng xác suất.</summary>
+        public static int RandomWithProbably(float[] probs)
+        {
+            float total = 0f;
+            foreach (var p in probs)
+                total += p;
+
+            if (total <= 0f) return 0; // tránh chia cho 0
+
+            float r = RandomFloat(0f, total);
+            float cumulative = 0f;
+
+            for (int i = 0; i < probs.Length; i++)
             {
-                acc += probablys[i];
-                if (value < acc)
+                cumulative += probs[i];
+                if (r < cumulative)
                     return i;
             }
-            return 0;
+
+            // fallback an toàn nếu float cộng dồn bị lệch
+            return probs.Length - 1;
         }
 
         /// <summary>Thời gian hiện tại (Unix time millis).</summary>
