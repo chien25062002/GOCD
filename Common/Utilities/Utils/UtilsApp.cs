@@ -132,67 +132,7 @@ namespace GOCD.Framework
                 return FormatNumber(number / 1_000_000_000) + "B";
             return FormatNumber(number);
         }
-
-        private static System.Random rnd = new System.Random();
-
-        /// <summary>Trả về số nguyên ngẫu nhiên trong khoảng [from, to).</summary>
-        public static int RandomInt(int from, int to)
-        {
-            return rnd.Next(from, to);
-        }
-
-        /// <summary>Trả về số thực ngẫu nhiên trong khoảng [from, to).</summary>
-        public static float RandomFloat(float from, float to)
-        {
-            return UnityEngine.Random.Range(from, to);
-        }
-
-        /// <summary>Xác suất xảy ra theo phần trăm (0-100).</summary>
-        public static bool isOccurrence(float probabilityPercent)
-        {
-            return RandomFloat(0, 100) < probabilityPercent;
-        }
-
-        // /// <summary>Trả về index ngẫu nhiên dựa trên mảng xác suất.</summary>
-        // public static int RandomWithProbably(float[] probablys)
-        // {
-        //     float sum = 0;
-        //     foreach (float prob in probablys) sum += prob;
-        //
-        //     float value = RandomFloat(0, sum - 0.0001f);
-        //     float acc = 0;
-        //     for (int i = 0; i < probablys.Length; i++)
-        //     {
-        //         acc += probablys[i];
-        //         if (value < acc)
-        //             return i;
-        //     }
-        //     return 0;
-        // }
-
-        /// <summary>Trả về index ngẫu nhiên dựa trên mảng xác suất.</summary>
-        public static int RandomWithProbably(float[] probs)
-        {
-            float total = 0f;
-            foreach (var p in probs)
-                total += p;
-
-            if (total <= 0f) return 0; // tránh chia cho 0
-
-            float r = RandomFloat(0f, total);
-            float cumulative = 0f;
-
-            for (int i = 0; i < probs.Length; i++)
-            {
-                cumulative += probs[i];
-                if (r < cumulative)
-                    return i;
-            }
-
-            // fallback an toàn nếu float cộng dồn bị lệch
-            return probs.Length - 1;
-        }
-
+        
         /// <summary>Thời gian hiện tại (Unix time millis).</summary>
         public static long CurrentTimeMiliseconds()
         {
@@ -263,9 +203,6 @@ namespace GOCD.Framework
 
         /// <summary>Clamp giá trị float trong khoảng 0..1.</summary>
         public static float Clamp01(float value) => Mathf.Clamp01(value);
-
-        /// <summary>Trả về bool ngẫu nhiên.</summary>
-        public static bool RandomBool() => UnityEngine.Random.value > 0.5f;
 
         /// <summary>Trả về thời gian hiện tại (UTC) dạng DateTime.</summary>
         public static DateTime NowUTC => DateTime.UtcNow;
