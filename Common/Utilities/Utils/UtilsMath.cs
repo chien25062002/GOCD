@@ -1,71 +1,78 @@
 using System;
+using System.Collections.Generic;
+using GOCD.Framework;
+using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace Game
 {
-    public static class UtilsMath
+    public class World_Config : ScriptableObject
     {
-        /// <summary>
-        /// Tuyến tính nội suy giữa a và b theo t (giá trị giữa 0–1).
-        /// </summary>
-        public static double Lerp(double a, double b, double t)
+        [MinValue(1)]
+        public int ID = 1;
+        public string Name;
+
+        public string MinStuds = "0";
+        public string MaxStuds = "0";
+        public float MaxLuck = 5;
+
+        #region Cache
+
+        [NonSerialized] double _minStuds = -1;
+        [SerializeField] double _maxStuds = -1;
+
+        #endregion
+
+        public List<World_Fish_Config> Fishes = new List<World_Fish_Config>();
+
+        public double MinStudsVal
         {
-            return a + (b - a) * t;
+            get
+            {
+                if (_minStuds < 0) _minStuds = UtilsNumber.ParseCompactNumber(MinStuds);
+                return _minStuds;
+            }
         }
 
-        /// <summary>
-        /// Lấy giá trị t (0–1) từ v nằm giữa a và b.
-        /// </summary>
-        public static double InverseLerp(double a, double b, double v)
+        public double MaxStudsVal
         {
-            if (Math.Abs(b - a) < double.Epsilon) return 0;
-            return (v - a) / (b - a);
+            get
+            {
+                if (_maxStuds < 0) _maxStuds = UtilsNumber.ParseCompactNumber(MaxStuds);
+                return _maxStuds;
+            }
         }
+
+        public float LuckyEvaluate(double studs)
+        {
+            return MaxLuck * UtilsMath.To01F(studs, MaxStudsVal);
+        }
+
+        [Button]
+        public void Validate()
+        {
+        #if UNITY_EDITOR
+            double min = UtilsNumber.ParseCompactNumber(MinStuds);
+            double max = UtilsNumber.ParseCompactNumber(MaxStuds);
         
-        /// <summary>
-        /// Tính tỉ lệ từ 0 → 1 của giá trị trong đoạn [0, max]. Có clamp.
-        /// </summary>
-        public static double To01(double value, double max)
-        {
-            if (Math.Abs(max) < double.Epsilon) return 0.0;
-            return Clamp(value / max, 0.0, 1.0);
-        }
-
-        public static float To01F(double value, double max) => (float)To01(value, max);
-
-        /// <summary>
-        /// Giới hạn giá trị trong khoảng [min, max]
-        /// </summary>
-        public static double Clamp(double value, double min, double max)
-        {
-            if (value < min) return min;
-            if (value > max) return max;
-            return value;
-        }
-
-        /// <summary>
-        /// Nội suy lại giá trị từ khoảng [fromMin, fromMax] sang [toMin, toMax]
-        /// </summary>
-        public static double Remap(double fromMin, double fromMax, double toMin, double toMax, double value)
-        {
-            double t = InverseLerp(fromMin, fromMax, value);
-            return Lerp(toMin, toMax, t);
-        }
-
-        /// <summary>
-        /// Chia an toàn, tránh chia cho 0
-        /// </summary>
-        public static double DivSafe(double a, double b, double fallback = 0.0)
-        {
-            return Math.Abs(b) < double.Epsilon ? fallback : a / b;
-        }
-
-        /// <summary>
-        /// Làm tròn tới chữ số thập phân nhất định
-        /// </summary>
-        public static double RoundTo(double value, int digits)
-        {
-            return Math.Round(value, digits);
+            int count = Fishes.Count;
+            if (count == 0 || max <= min)
+            {
+                Debug.LogWarning($"⚠️ Invalid studs range or empty fish list in World {ID}.");
+                return;
+            }
+        
+            for (int i = 0; i < count; i++)
+            {
+                double t = (count == 1) ? 0.5 : (double)i / (count - 1); // Nếu chỉ có 1 cá → ở giữa
+                double studs = Mathf.Lerp((float)min, (float)max, (float)t);
+                Fishes[i].Studs = UtilsNumber.FormatVN_CompactRounded(studs);
+            }
+        
+            UnityEditor.EditorUtility.SetDirty(this);
+            UnityEditor.AssetDatabase.SaveAssets();
+            Debug.Log($"✅ Updated {count} fish studs for World {ID}: {MinStuds} → {MaxStuds}");
+        #endif
         }
     }
 }
