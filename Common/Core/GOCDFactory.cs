@@ -20,6 +20,7 @@ namespace GOCD.Framework
         
         [Title("Prefabs")]
         [SerializeField] GameObject _uiNotificationText;
+        [SerializeField] GameObject _debugPopup;
 
         [Space] 
         
@@ -37,6 +38,7 @@ namespace GOCD.Framework
         public static PoolPrefabConfig poolTextDamage => Instance._poolTextDamage;
 
         public static GameObject UINotificationText => Instance._uiNotificationText;
+        public static GameObject DebugPopup => Instance._debugPopup;
 
         public static AudioConfig SfxUIButtonClick => Instance._sfxUIButtonClick;
         
