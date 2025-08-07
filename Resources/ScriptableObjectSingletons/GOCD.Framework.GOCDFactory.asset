@@ -18,9 +18,15 @@ MonoBehaviour:
   _sceneLoaderPrefab: {fileID: 0}
   _poolTextDamage: {fileID: 11400000, guid: 2dbaf010f41879e4194141e45c229d84, type: 2}
   _uiNotificationText: {fileID: 4907520297726617435, guid: 9e20046be5334484aaf483032ca9981e, type: 3}
+  _debugPopup: {fileID: 0}
   _sfxUIButtonClick: {fileID: 0}
   _viewAdsBreak:
     m_AssetGUID: 9bdad9abfa56d614e9aea8cf45b243a9
+    m_SubObjectName: 
+    m_SubObjectType: 
+    m_EditorAssetChanged: 0
+  _internetCheck:
+    m_AssetGUID: c18005002afe2f14aa79311613dbec26
     m_SubObjectName: 
     m_SubObjectType: 
     m_EditorAssetChanged: 0

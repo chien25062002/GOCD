@@ -29,6 +29,7 @@ namespace GOCD.Framework
         
         [Title("View")]
         [SerializeField] AssetReference _viewAdsBreak;
+        [SerializeField] AssetReference _internetCheck;
         
         public static float sceneTransitionFadeInDuration => Instance._sceneLoaderFadeInDuration;
         public static float sceneTransitionLoadDuration => Instance._sceneLoaderLoadDuration;
@@ -39,6 +40,7 @@ namespace GOCD.Framework
 
         public static GameObject UINotificationText => Instance._uiNotificationText;
         public static GameObject DebugPopup => Instance._debugPopup;
+        public static AssetReference InternetCheck => Instance._internetCheck;
 
         public static AudioConfig SfxUIButtonClick => Instance._sfxUIButtonClick;
         
