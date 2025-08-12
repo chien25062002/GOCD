@@ -7,35 +7,37 @@ namespace GOCD.Framework
     public static class PoolPrefabGlobal
     {
         static Dictionary<GameObject, PoolPrefab> _poolLookup = new ();
-        
+
         [RuntimeInitializeOnLoadMethod]
         static void Init()
         {
             MonoCallback.Instance.EventActiveSceneChanged += MonoCallback_EventActiveSceneChanged;
         }
-        
+
         static void MonoCallback_EventActiveSceneChanged(Scene sceneCurrent, Scene sceneNext)
         {
+            // dọn scheduler queue trước khi clear pool theo scene
+            PoolReleaseScheduler.ClearQueue();
+
             foreach (PoolPrefab pool in _poolLookup.Values)
             {
                 if (pool.Config != null && pool.Config.dontDestroyOnLoad)
                     continue;
-
                 pool.Clear();
             }
         }
 
         public static void Clean()
         {
+            PoolReleaseScheduler.ClearQueue();
             foreach (PoolPrefab pool in _poolLookup.Values)
             {
                 if (pool.Config != null && pool.Config.dontDestroyOnLoad)
                     continue;
-
                 pool.Clear();
             }
         }
-        
+
         public static void Construct(params PoolPrefabConfig[] configs)
         {
             for (int i = 0; i < configs.Length; i++)
@@ -45,31 +47,48 @@ namespace GOCD.Framework
             }
         }
 
-        public static GameObject Get(PoolPrefabConfig config)
-        {
-            return GetPool(config).Get();
-        }
-
-        public static GameObject Get(GameObject prefab)
-        {
-            return GetPool(prefab).Get();
-        }
+        public static GameObject Get(PoolPrefabConfig config) => GetPool(config).Get();
+        public static GameObject Get(GameObject prefab) => GetPool(prefab).Get();
 
         public static void Release(PoolPrefabConfig config, GameObject instance)
         {
-            GetPool(config).Release(instance);
+            if (config == null || instance == null) return;
+            if (!TryScheduleIfDirty(instance, config.prefab))
+            {
+                GetPool(config).Release(instance);
+            }
         }
 
         public static void Release(GameObject prefab, GameObject instance)
         {
-            GetPool(prefab).Release(instance);
+            if (prefab == null || instance == null) return;
+            if (!TryScheduleIfDirty(instance, prefab))
+            {
+                GetPool(prefab).Release(instance);
+            }
+        }
+
+        static bool TryScheduleIfDirty(GameObject instance, GameObject prefab)
+        {
+            // Kiểm tra có component IPoolPreRelease bẩn không
+            var handlers = instance.GetComponentsInChildren<IPoolPreRelease>(true);
+            bool needs = false;
+            for (int i = 0; i < handlers.Length; i++)
+            {
+                var h = handlers[i];
+                if (h != null && h.IsDirty) { needs = true; break; }
+            }
+
+            if (!needs) return false;
+
+            PoolReleaseScheduler.Enqueue(prefab, instance);
+            return true;
         }
 
         public static PoolPrefab GetPool(PoolPrefabConfig config)
         {
             if (!_poolLookup.ContainsKey(config.prefab))
                 _poolLookup.Add(config.prefab, new PoolPrefab(config));
-
             return _poolLookup[config.prefab];
         }
 
@@ -77,7 +96,6 @@ namespace GOCD.Framework
         {
             if (!_poolLookup.ContainsKey(prefab))
                 _poolLookup.Add(prefab, new PoolPrefab(prefab));
-
             return _poolLookup[prefab];
         }
     }

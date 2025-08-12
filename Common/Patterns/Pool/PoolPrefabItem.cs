@@ -9,7 +9,7 @@ namespace GOCD.Framework
         [Title("Config")]
         [SerializeField] PoolPrefabConfig _config;
 
-        protected virtual void  OnDestroy()
+        protected virtual void OnDestroy()
         {
             gameObject.ClearComponentCache();
         }
