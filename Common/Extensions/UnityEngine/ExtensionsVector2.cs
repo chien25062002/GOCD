@@ -168,5 +168,11 @@ namespace GOCD.Framework
         {
             return Mathf.Abs(v.x) <= Mathf.Abs(v.y) ? "X" : "Y";
         }
+        
+        // So sánh gần đúng giữa 2 Vector2
+        public static bool Approximately(this Vector2 a, Vector2 b, float tolerance)
+        {
+            return (a - b).sqrMagnitude <= tolerance * tolerance;
+        }
     }
 }

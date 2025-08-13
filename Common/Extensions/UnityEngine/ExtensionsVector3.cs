@@ -113,5 +113,11 @@ namespace GOCD.Framework
                 Random.Range(-v.y, v.y),
                 Random.Range(-v.z, v.z));
         }
+        
+        // So sánh gần đúng giữa 2 Vector2
+        public static bool Approximately(this Vector3 a, Vector3 b, float tolerance)
+        {
+            return (a - b).sqrMagnitude <= tolerance * tolerance;
+        }
     }
 }
