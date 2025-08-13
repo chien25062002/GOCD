@@ -4,9 +4,17 @@ using UnityEngine.SceneManagement;
 
 namespace GOCD.Framework
 {
+    /// <summary>
+    /// Global prefab pool manager.
+    /// - Track instance đã vào pool bằng HashSet (_releasedInstances).
+    /// - Nếu đã Release rồi thì các lần Release sau sẽ skip (không double-release).
+    /// - Khi Get() thì remove khỏi HashSet (đánh dấu active).
+    /// - Instance bẩn -> enqueue vào PoolReleaseScheduler; chỉ khi thực sự Release về pool mới coi là released.
+    /// </summary>
     public static class PoolPrefabGlobal
     {
-        static Dictionary<GameObject, PoolPrefab> _poolLookup = new ();
+        static readonly Dictionary<GameObject, PoolPrefab> _poolLookup = new();
+        static readonly HashSet<GameObject> _releasedInstances = new();
 
         [RuntimeInitializeOnLoadMethod]
         static void Init()
@@ -16,8 +24,11 @@ namespace GOCD.Framework
 
         static void MonoCallback_EventActiveSceneChanged(Scene sceneCurrent, Scene sceneNext)
         {
-            // dọn scheduler queue trước khi clear pool theo scene
+            // Dọn scheduler queue trước khi clear pool theo scene
             PoolReleaseScheduler.ClearQueue();
+
+            // Clear released cache (tránh giữ tham chiếu cross-scene)
+            _releasedInstances.Clear();
 
             foreach (PoolPrefab pool in _poolLookup.Values)
             {
@@ -27,9 +38,15 @@ namespace GOCD.Framework
             }
         }
 
+        /// <summary>
+        /// Clear tất cả pool (trừ những pool có dontDestroyOnLoad)
+        /// + xoá hàng đợi scheduler + cache released.
+        /// </summary>
         public static void Clean()
         {
             PoolReleaseScheduler.ClearQueue();
+            _releasedInstances.Clear();
+
             foreach (PoolPrefab pool in _poolLookup.Values)
             {
                 if (pool.Config != null && pool.Config.dontDestroyOnLoad)
@@ -47,30 +64,64 @@ namespace GOCD.Framework
             }
         }
 
-        public static GameObject Get(PoolPrefabConfig config) => GetPool(config).Get();
-        public static GameObject Get(GameObject prefab) => GetPool(prefab).Get();
+        // =========================
+        //            GET
+        // =========================
+
+        public static GameObject Get(PoolPrefabConfig config)
+        {
+            var go = GetPool(config).Get();
+            _releasedInstances.Remove(go); // đánh dấu active
+            return go;
+        }
+
+        public static GameObject Get(GameObject prefab)
+        {
+            var go = GetPool(prefab).Get();
+            _releasedInstances.Remove(go); // đánh dấu active
+            return go;
+        }
+
+        // =========================
+        //          RELEASE
+        // =========================
 
         public static void Release(PoolPrefabConfig config, GameObject instance)
         {
             if (config == null || instance == null) return;
+
+            // Nếu đã release rồi thì thôi (skip)
+            if (_releasedInstances.Contains(instance)) return;
+
             if (!TryScheduleIfDirty(instance, config.prefab))
             {
+                // Trả về pool ngay -> đánh dấu đã released
+                _releasedInstances.Add(instance);
                 GetPool(config).Release(instance);
             }
+            // Nếu enqueue vào scheduler thì chưa coi là released;
+            // khi scheduler xử lý xong sẽ gọi lại Release(...) và thêm vào set lúc đó.
         }
 
         public static void Release(GameObject prefab, GameObject instance)
         {
             if (prefab == null || instance == null) return;
+
+            // Nếu đã release rồi thì thôi (skip)
+            if (_releasedInstances.Contains(instance)) return;
+
             if (!TryScheduleIfDirty(instance, prefab))
             {
+                _releasedInstances.Add(instance);
                 GetPool(prefab).Release(instance);
             }
         }
 
+        /// <summary>
+        /// Kiểm tra các IPoolPreRelease có "bẩn" không; nếu bẩn thì enqueue để xử lý trước khi release thật.
+        /// </summary>
         static bool TryScheduleIfDirty(GameObject instance, GameObject prefab)
         {
-            // Kiểm tra có component IPoolPreRelease bẩn không
             var handlers = instance.GetComponentsInChildren<IPoolPreRelease>(true);
             bool needs = false;
             for (int i = 0; i < handlers.Length; i++)
@@ -85,6 +136,10 @@ namespace GOCD.Framework
             return true;
         }
 
+        // =========================
+        //        GET POOL
+        // =========================
+
         public static PoolPrefab GetPool(PoolPrefabConfig config)
         {
             if (!_poolLookup.ContainsKey(config.prefab))
@@ -97,6 +152,18 @@ namespace GOCD.Framework
             if (!_poolLookup.ContainsKey(prefab))
                 _poolLookup.Add(prefab, new PoolPrefab(prefab));
             return _poolLookup[prefab];
+        }
+
+        // =========================
+        //        CHECK API
+        // =========================
+
+        /// <summary>
+        /// True nếu instance đã được trả về pool (đã Release và chưa Get lại).
+        /// </summary>
+        public static bool IsReleased(GameObject instance)
+        {
+            return instance && _releasedInstances.Contains(instance);
         }
     }
 }
