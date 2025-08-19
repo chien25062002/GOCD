@@ -16,9 +16,17 @@ namespace GOCD.Framework
             get => _value;
             set
             {
-                if (!_value.Equals(value))
+                if (_value != null)
                 {
-                    OnBeforeChanged?.Invoke(_value);
+                    if (!_value.Equals(value))
+                    {
+                        OnBeforeChanged?.Invoke(_value);
+                        _value = value;
+                        OnValueChanged?.Invoke(_value);
+                    }
+                }
+                else
+                {
                     _value = value;
                     OnValueChanged?.Invoke(_value);
                 }
