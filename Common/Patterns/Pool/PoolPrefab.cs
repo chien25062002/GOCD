@@ -1,4 +1,4 @@
-// PoolPrefab.cs (bản rút gọn, chỉ sửa OnRelease + thêm PoolRoot)
+// PoolPrefab.cs
 using System;
 using UnityEngine;
 using UnityEngine.Pool;
@@ -11,10 +11,9 @@ namespace GOCD.Framework
         readonly bool _dontDestroyOnLoad;
         readonly ObjectPool<GameObject> _pool;
 
-        // ===== NEW: PoolRoot toàn cục để giữ inactive items an toàn qua Destroy parent/scene =====
+        // ===== PoolRoot để giữ inactive items an toàn =====
         static Transform s_PoolRoot;
-        static Transform PoolRoot
-        {
+        static Transform PoolRoot {
             get {
                 if (s_PoolRoot == null) {
                     var go = new GameObject("__PoolRoot");
@@ -73,14 +72,12 @@ namespace GOCD.Framework
             var go = UnityEngine.Object.Instantiate(_prefab, PoolRoot, false);
             if (_dontDestroyOnLoad) UnityEngine.Object.DontDestroyOnLoad(go);
             go.SetActive(false);
-            // Quan trọng: ngay từ đầu parent về PoolRoot để an toàn
             return go;
         }
 
         void OnGet(GameObject go)
         {
             if (!go) return;
-            // Khi lấy ra xài, có thể bỏ parent (tuỳ bạn) — thường để null
             go.transform.SetParent(null, false);
             go.SetActive(true);
         }
@@ -97,7 +94,6 @@ namespace GOCD.Framework
                 catch (Exception ex) { Debug.LogException(ex); }
             }
 
-            // Đưa về inactive + parent về PoolRoot để không bị Destroy theo _airplane
             go.SetActive(false);
             go.transform.SetParent(PoolRoot, false);
         }
@@ -114,7 +110,7 @@ namespace GOCD.Framework
 
         public GameObject Get()
         {
-            // Lọc "xác chết" nếu có
+            // Lọc “xác chết” nếu có
             for (int i = 0; i < 8; i++)
             {
                 var go = _pool.Get();

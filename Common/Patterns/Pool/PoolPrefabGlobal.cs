@@ -1,56 +1,50 @@
+// PoolPrefabGlobal.cs
 using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace GOCD.Framework
 {
-    /// <summary>
-    /// Global prefab pool manager.
-    /// - Track instance đã vào pool bằng HashSet (_releasedInstances).
-    /// - Nếu đã Release rồi thì các lần Release sau sẽ skip (không double-release).
-    /// - Khi Get() thì remove khỏi HashSet (đánh dấu active).
-    /// - Instance bẩn -> enqueue vào PoolReleaseScheduler; chỉ khi thực sự Release về pool mới coi là released.
-    /// </summary>
     public static class PoolPrefabGlobal
     {
-        static readonly Dictionary<GameObject, PoolPrefab> _poolLookup = new();
-        static readonly HashSet<GameObject> _releasedInstances = new();
+        static readonly Dictionary<GameObject, PoolPrefab> _poolLookup      = new();
+        static readonly HashSet<GameObject>                _releasedInstances = new();
+        static readonly HashSet<GameObject>                _activeInstances   = new();
+        static readonly Dictionary<GameObject, GameObject> _instanceToPrefab  = new();
 
         [RuntimeInitializeOnLoadMethod]
         static void Init()
         {
-            MonoCallback.Instance.EventActiveSceneChanged += MonoCallback_EventActiveSceneChanged;
+            if (MonoCallback.Instance != null)
+                MonoCallback.Instance.EventActiveSceneChanged += MonoCallback_EventActiveSceneChanged;
         }
 
-        static void MonoCallback_EventActiveSceneChanged(Scene sceneCurrent, Scene sceneNext)
+        static void MonoCallback_EventActiveSceneChanged(Scene cur, Scene next)
         {
-            // Dọn scheduler queue trước khi clear pool theo scene
             PoolReleaseScheduler.ClearQueue();
 
-            // Clear released cache (tránh giữ tham chiếu cross-scene)
             _releasedInstances.Clear();
+            _activeInstances.Clear();
+            _instanceToPrefab.Clear();
 
             foreach (PoolPrefab pool in _poolLookup.Values)
             {
-                if (pool.Config != null && pool.Config.dontDestroyOnLoad)
-                    continue;
+                if (pool.Config != null && pool.Config.dontDestroyOnLoad) continue;
                 pool.Clear();
             }
         }
 
-        /// <summary>
-        /// Clear tất cả pool (trừ những pool có dontDestroyOnLoad)
-        /// + xoá hàng đợi scheduler + cache released.
-        /// </summary>
         public static void Clean()
         {
             PoolReleaseScheduler.ClearQueue();
             _releasedInstances.Clear();
+            _activeInstances.Clear();
+            _instanceToPrefab.Clear();
 
             foreach (PoolPrefab pool in _poolLookup.Values)
             {
-                if (pool.Config != null && pool.Config.dontDestroyOnLoad)
-                    continue;
+                if (pool.Config != null && pool.Config.dontDestroyOnLoad) continue;
                 pool.Clear();
             }
         }
@@ -64,82 +58,76 @@ namespace GOCD.Framework
             }
         }
 
-        // =========================
-        //            GET
-        // =========================
-
+        // ========================= GET =========================
         public static GameObject Get(PoolPrefabConfig config)
         {
             var go = GetPool(config).Get();
-            _releasedInstances.Remove(go); // đánh dấu active
+            if (go != null)
+            {
+                _releasedInstances.Remove(go);
+                _activeInstances.Add(go);
+                _instanceToPrefab[go] = config.prefab;
+            }
             return go;
         }
 
         public static GameObject Get(GameObject prefab)
         {
             var go = GetPool(prefab).Get();
-            _releasedInstances.Remove(go); // đánh dấu active
+            if (go != null)
+            {
+                _releasedInstances.Remove(go);
+                _activeInstances.Add(go);
+                _instanceToPrefab[go] = prefab;
+            }
             return go;
         }
 
-        // =========================
-        //          RELEASE
-        // =========================
-
+        // ======================= RELEASE =======================
         public static void Release(PoolPrefabConfig config, GameObject instance)
         {
-            if (config == null || instance == null) return;
-
-            // Nếu đã release rồi thì thôi (skip)
+            if (config == null || !instance) return;
             if (_releasedInstances.Contains(instance)) return;
 
             if (!TryScheduleIfDirty(instance, config.prefab))
             {
-                // Trả về pool ngay -> đánh dấu đã released
                 _releasedInstances.Add(instance);
+                _activeInstances.Remove(instance);
+                _instanceToPrefab.Remove(instance);
                 GetPool(config).Release(instance);
             }
-            // Nếu enqueue vào scheduler thì chưa coi là released;
-            // khi scheduler xử lý xong sẽ gọi lại Release(...) và thêm vào set lúc đó.
         }
 
         public static void Release(GameObject prefab, GameObject instance)
         {
-            if (prefab == null || instance == null) return;
-
-            // Nếu đã release rồi thì thôi (skip)
+            if (!prefab || !instance) return;
             if (_releasedInstances.Contains(instance)) return;
 
             if (!TryScheduleIfDirty(instance, prefab))
             {
                 _releasedInstances.Add(instance);
+                _activeInstances.Remove(instance);
+                _instanceToPrefab.Remove(instance);
                 GetPool(prefab).Release(instance);
             }
         }
 
-        /// <summary>
-        /// Kiểm tra các IPoolPreRelease có "bẩn" không; nếu bẩn thì enqueue để xử lý trước khi release thật.
-        /// </summary>
         static bool TryScheduleIfDirty(GameObject instance, GameObject prefab)
         {
             var handlers = instance.GetComponentsInChildren<IPoolPreRelease>(true);
-            bool needs = false;
             for (int i = 0; i < handlers.Length; i++)
             {
                 var h = handlers[i];
-                if (h != null && h.IsDirty) { needs = true; break; }
+                if (h != null && h.IsDirty)
+                {
+                    PoolReleaseScheduler.Enqueue(prefab, instance);
+                    return true;
+                }
             }
-
-            if (!needs) return false;
-
-            PoolReleaseScheduler.Enqueue(prefab, instance);
-            return true;
+            return false;
         }
 
-        // =========================
-        //        GET POOL
-        // =========================
-
+        // ======================= GET POOL ======================
         public static PoolPrefab GetPool(PoolPrefabConfig config)
         {
             if (!_poolLookup.ContainsKey(config.prefab))
@@ -154,16 +142,52 @@ namespace GOCD.Framework
             return _poolLookup[prefab];
         }
 
-        // =========================
-        //        CHECK API
-        // =========================
+        // =================== CHECK / WAIT / FORCE ==============
+        public static bool IsReleased(GameObject instance) => instance && _releasedInstances.Contains(instance);
+        public static int ActiveCount => _activeInstances.Count;
+
+        public static UniTask FlushAsync(int maxPerFrame = 256) => PoolReleaseScheduler.FlushAsync(maxPerFrame);
+
+        public static async UniTask WaitForIdleAsync(float timeoutSeconds = 3f)
+        {
+            float end = Time.realtimeSinceStartup + timeoutSeconds;
+            while ((ActiveCount > 0 || PoolReleaseScheduler.PendingCount > 0) &&
+                   Time.realtimeSinceStartup < end)
+            {
+                await Cysharp.Threading.Tasks.UniTask.Yield(Cysharp.Threading.Tasks.PlayerLoopTiming.LastPostLateUpdate);
+            }
+        }
+
+        public static async UniTask FlushAndWaitIdleAsync(float timeoutSeconds = 3f, int flushBatch = 256)
+        {
+            await FlushAsync(flushBatch);
+            await WaitForIdleAsync(timeoutSeconds);
+        }
 
         /// <summary>
-        /// True nếu instance đã được trả về pool (đã Release và chưa Get lại).
+        /// FORCE: ép toàn bộ active trả về pool (kể cả chưa gọi Release), rồi flush & wait.
         /// </summary>
-        public static bool IsReleased(GameObject instance)
+        public static async UniTask ForceReleaseAllAsync(float timeoutSeconds = 3f, int flushBatch = 256)
         {
-            return instance && _releasedInstances.Contains(instance);
+            var tmp = new List<GameObject>(_activeInstances);
+            for (int i = 0; i < tmp.Count; i++)
+            {
+                var inst = tmp[i];
+                if (!inst) continue;
+
+                if (_instanceToPrefab.TryGetValue(inst, out var prefab) && prefab)
+                {
+                    Release(prefab, inst);
+                }
+                else
+                {
+                    Object.Destroy(inst);
+                    _activeInstances.Remove(inst);
+                    _releasedInstances.Add(inst);
+                    _instanceToPrefab.Remove(inst);
+                }
+            }
+            await FlushAndWaitIdleAsync(timeoutSeconds, flushBatch);
         }
     }
 }
