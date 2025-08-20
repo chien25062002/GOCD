@@ -58,6 +58,14 @@ namespace GOCD.Framework
             }
         }
 
+        public static void EnsurePoolCount()
+        {
+            foreach (var pool in _poolLookup.Values)
+            {
+                pool.EnsurePoolCount().SuppressCancellationThrow();
+            }
+        }
+
         // ========================= GET =========================
         public static GameObject Get(PoolPrefabConfig config)
         {

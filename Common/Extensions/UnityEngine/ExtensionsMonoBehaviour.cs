@@ -12,38 +12,96 @@ namespace GOCD.Framework
             public WeakReference<GameObject> reference;
             public Dictionary<Type, Component> components;
 
-            public bool IsValid => reference.TryGetTarget(out var go) && go != null;
+            public bool IsValid => reference != null
+                                   && reference.TryGetTarget(out var go)
+                                   && go != null;
 
             public GameObject GameObject
             {
                 get
                 {
-                    reference.TryGetTarget(out var go);
-                    return go;
+                    if (reference != null && reference.TryGetTarget(out var go))
+                        return go;
+                    return null;
                 }
             }
         }
-        
+
         static int _frameCounter = 0;
-        const int AutoCleanInterval = 3600; // Clean mỗi 3600 frame (nếu game 60fps thì là sau 60s clean 1 lần)
+        const int AutoCleanInterval = 3600;
 
         static readonly Dictionary<int, WeakGameObjectRef> _cacheMap = new();
 
-        static ExtensionsMonoBehaviour()
+        // ---- Lazy init flags ----
+        static bool _inited;
+        static bool _updateHooked;
+        static bool _quitting;
+
+        // Không làm gì “nặng” ở static ctor nữa
+        static ExtensionsMonoBehaviour() { /* no side-effects */ }
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+        static void RuntimeInit()
         {
-            // Clear cache khi đổi scene hoặc thoát game
+            EnsureInit();
+        }
+
+        static void EnsureInit()
+        {
+            if (_inited) return;
+            _inited = true;
+
+            // Các hook an toàn (không đụng MonoCallback)
             SceneManager.activeSceneChanged += (_, _) => ClearAllComponentCache();
-            Application.quitting += ClearAllComponentCache;
-            
-            // Hook vào Unity update
-            MonoCallback.Instance.EventUpdate += AutoCleanCache;
+            Application.quitting += OnAppQuitting;
+
+            // Thử hook Update qua MonoCallback nếu đã sẵn sàng, nếu chưa thì defer
+            TryHookUpdate();
+            SceneManager.sceneLoaded += OnSceneLoadedTryHook; // dự phòng: khi scene mới load, thử hook lại
+        }
+
+        static void OnAppQuitting()
+        {
+            _quitting = true;
+            ClearAllComponentCache();
+            TryUnhookUpdate(); // gỡ nếu có
+        }
+
+        static void OnSceneLoadedTryHook(Scene _, LoadSceneMode __)
+        {
+            TryHookUpdate();
+        }
+
+        static void TryHookUpdate()
+        {
+            if (_updateHooked || _quitting) return;
+
+            // MonoCallback có thể chưa spawn ở thời điểm này
+            if (!MonoCallback.IsDestroyed && MonoCallback.Instance != null)
+            {
+                MonoCallback.Instance.EventUpdate += AutoCleanCache;
+                _updateHooked = true;
+            }
+            // nếu chưa có Instance, cứ để SceneLoaded gọi lại TryHookUpdate lần sau
+        }
+
+        static void TryUnhookUpdate()
+        {
+            if (!_updateHooked) return;
+            if (!MonoCallback.IsDestroyed && MonoCallback.Instance != null)
+            {
+                MonoCallback.Instance.EventUpdate -= AutoCleanCache;
+            }
+            _updateHooked = false;
         }
 
         /// <summary>
-        /// Lấy component từ GameObject có cache. Không cache null component.
+        /// Lấy component có cache. Không cache null component.
         /// </summary>
         public static T GetCachedComponent<T>(this GameObject go) where T : Component
         {
+            EnsureInit();
+
             if (go == null) return null;
 
             int id = go.GetInstanceID();
@@ -60,7 +118,6 @@ namespace GOCD.Framework
                 }
             }
 
-            // Nếu chưa có hoặc đã mất valid → tạo mới
             var newRef = new WeakGameObjectRef
             {
                 reference = new WeakReference<GameObject>(go),
@@ -74,42 +131,39 @@ namespace GOCD.Framework
         {
             var type = typeof(T);
             if (entry.components.TryGetValue(type, out var comp))
-            {
                 return (T)comp;
-            }
 
             var go = entry.GameObject;
             if (go == null) return null;
 
             comp = go.GetComponent<T>();
             if (comp != null)
-            {
-                entry.components[type] = comp; // ⚠️ Chỉ cache nếu không null
-            }
+                entry.components[type] = comp;
 
             return (T)comp;
         }
 
-        /// <summary>
-        /// Xoá toàn bộ cache thủ công nếu muốn.
-        /// </summary>
+        /// <summary>Xoá toàn bộ cache thủ công.</summary>
         public static void ClearAllComponentCache()
         {
+            EnsureInit();
             _cacheMap.Clear();
         }
 
-        /// <summary>
-        /// Xoá cache của một GameObject cụ thể (ví dụ khi return về pool).
-        /// </summary>
+        /// <summary>Xoá cache của 1 GameObject.</summary>
         public static void ClearComponentCache(this GameObject go)
         {
+            EnsureInit();
             if (go == null) return;
             int id = go.GetInstanceID();
             _cacheMap.Remove(id);
         }
-        
+
         static void AutoCleanCache()
         {
+            // Có thể bị gọi sau khi quitting — bảo vệ nhẹ
+            if (_quitting) return;
+
             _frameCounter++;
             if (_frameCounter < AutoCleanInterval) return;
             _frameCounter = 0;
@@ -121,8 +175,8 @@ namespace GOCD.Framework
                     keysToRemove.Add(kvp.Key);
             }
 
-            foreach (var key in keysToRemove)
-                _cacheMap.Remove(key);
+            for (int i = 0; i < keysToRemove.Count; i++)
+                _cacheMap.Remove(keysToRemove[i]);
         }
     }
 }

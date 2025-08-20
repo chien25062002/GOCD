@@ -1,5 +1,7 @@
 // PoolPrefab.cs
 using System;
+using System.Collections.Generic;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Pool;
 
@@ -7,9 +9,16 @@ namespace GOCD.Framework
 {
     public sealed class PoolPrefab
     {
+        const int DefaultCapacity = 16;
+        const int MaxSize = 4096;
+        
         readonly GameObject _prefab;
         readonly bool _dontDestroyOnLoad;
         readonly ObjectPool<GameObject> _pool;
+
+        CancelToken _token;
+        
+        int _spawnAtStart;
 
         // ===== PoolRoot để giữ inactive items an toàn =====
         static Transform s_PoolRoot;
@@ -23,9 +32,6 @@ namespace GOCD.Framework
                 return s_PoolRoot;
             }
         }
-
-        const int DefaultCapacity = 16;
-        const int MaxSize = 4096;
 
         public PoolPrefabConfig Config { get; }
 
@@ -44,9 +50,13 @@ namespace GOCD.Framework
                 actionOnRelease: OnRelease,
                 actionOnDestroy: OnDestroy,
                 collectionCheck: false,
-                defaultCapacity: DefaultCapacity,
-                maxSize: MaxSize
+                defaultCapacity: config.spawnCapacity,
+                maxSize: config.spawnCapacityMax
             );
+
+            _spawnAtStart = config.spawnAtStart;
+            
+            EnsurePoolCount();
         }
 
         public PoolPrefab(GameObject prefab)
@@ -67,6 +77,39 @@ namespace GOCD.Framework
             );
         }
 
+        public async UniTask EnsurePoolCount(int maxPerFrame = 10)
+        {
+            _token?.Cancel();    // huỷ vòng cũ
+            _token = new CancelToken();
+            var ct = _token.Token;   // lấy CancellationToken của bạn
+    
+            // init number of spawn at start in here
+            int needToSpawn = Mathf.Max(0, _spawnAtStart - _pool.CountAll);
+            int c = 0;
+
+            try
+            {
+                for (int i = 0; i < needToSpawn; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+
+                    var go = _pool.Get();   // _warming flag như đã bàn
+                    _pool.Release(go);
+
+                    c++;
+                    if (c >= maxPerFrame)
+                    {
+                        c = 0;
+                        await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, ct);
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                // silent cancel
+            }
+        }
+        
         GameObject Create()
         {
             var go = UnityEngine.Object.Instantiate(_prefab, PoolRoot, false);
