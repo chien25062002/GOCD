@@ -52,7 +52,7 @@ namespace CFramework
         {
             Vector3 targetScale = _initialScale * percent;
             _tween.Stop();
-            _tween = Tween.Scale(_tfTarget, _tfTarget.localScale, targetScale, _duration, Ease.OutQuad);
+            _tween = Tween.Scale(_tfTarget, _tfTarget.localScale, targetScale, _duration, Ease.OutQuad, useUnscaledTime: true);
         }
 
         void IPointerDownHandler.OnPointerDown(PointerEventData eventData)
