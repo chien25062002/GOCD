@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
-namespace CFramework
+namespace GOCD.Framework
 {
     public static class TextUtilities
     {
@@ -45,14 +45,14 @@ namespace CFramework
 
         public static string ColorizeText(string msg, Color? color)
         {
-            Color c = color.HasValue ? color.Value : Color.white;
+            Color c = color ?? Color.white;
 
             return $"<color=#{ColorUtility.ToHtmlStringRGB(c)}>" + msg + "</color>";
         }
         
         public static string ColorizeText(int msg, Color? color)
         {
-            Color c = color.HasValue ? color.Value : Color.white;
+            Color c = color ?? Color.white;
 
             return $"<color=#{ColorUtility.ToHtmlStringRGB(c)}>" + msg + "</color>";
         }
