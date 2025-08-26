@@ -24,15 +24,17 @@ namespace GOCD.Framework.Internet
         public override void Button_OnClick()
         {
             base.Button_OnClick();
-            
             SetInteractable(false);
-            InternetView.TryConnect();
+            if (InternetView != null)
+            {
+                InternetView.TryConnect();
+            }
         }
 
         public void SetInteractable(bool isInteractable)
         {
             button.interactable = isInteractable;
-            _imgFrame.material = isInteractable ? null : _grayscaleMat;
+            if (_imgFrame != null) _imgFrame.material = isInteractable ? null : _grayscaleMat;
         }
     }
 }

@@ -173,6 +173,9 @@ MonoBehaviour:
   _onHideEnd:
     m_PersistentCalls:
       m_Calls: []
+  _destroyOnClose: 1
+  _destroyOnHide: 0
+  _setInactiveOnCloseIfNotDestroy: 0
   references:
     version: 2
     RefIds: []
