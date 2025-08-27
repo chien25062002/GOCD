@@ -1,4 +1,4 @@
-//-----------------------------------------------------------------------
+﻿//-----------------------------------------------------------------------
 // <copyright file="Vector3DictionaryKeyPathProvider.cs" company="Sirenix IVS">
 // Copyright (c) 2018 Sirenix IVS
 //

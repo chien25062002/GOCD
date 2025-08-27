@@ -1,4 +1,4 @@
-//-----------------------------------------------------------------------
+﻿//-----------------------------------------------------------------------
 // <copyright file="PreviouslySerializedAsAttribute.cs" company="Sirenix IVS">
 // Copyright (c) 2018 Sirenix IVS
 //

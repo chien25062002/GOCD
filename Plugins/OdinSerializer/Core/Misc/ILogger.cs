@@ -1,4 +1,4 @@
-namespace OdinSerializer
+﻿namespace OdinSerializer
 {
     using System;
 
