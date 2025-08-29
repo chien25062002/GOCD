@@ -8,9 +8,10 @@ namespace GOCD.Framework
 {
     public static class PoolPrefabGlobal
     {
-        static readonly Dictionary<GameObject, PoolPrefab> _poolLookup      = new();
+        static readonly Dictionary<GameObject, PoolPrefab> _poolLookup       = new();
         static readonly HashSet<GameObject>                _releasedInstances = new();
         static readonly HashSet<GameObject>                _activeInstances   = new();
+        static readonly HashSet<GameObject>                _pendingInstances  = new();   // NEW
         static readonly Dictionary<GameObject, GameObject> _instanceToPrefab  = new();
 
         [RuntimeInitializeOnLoadMethod]
@@ -26,6 +27,7 @@ namespace GOCD.Framework
 
             _releasedInstances.Clear();
             _activeInstances.Clear();
+            _pendingInstances.Clear();
             _instanceToPrefab.Clear();
 
             foreach (PoolPrefab pool in _poolLookup.Values)
@@ -40,6 +42,7 @@ namespace GOCD.Framework
             PoolReleaseScheduler.ClearQueue();
             _releasedInstances.Clear();
             _activeInstances.Clear();
+            _pendingInstances.Clear();
             _instanceToPrefab.Clear();
 
             foreach (PoolPrefab pool in _poolLookup.Values)
@@ -74,6 +77,7 @@ namespace GOCD.Framework
             {
                 _releasedInstances.Remove(go);
                 _activeInstances.Add(go);
+                _pendingInstances.Remove(go);
                 _instanceToPrefab[go] = config.prefab;
             }
             return go;
@@ -86,6 +90,7 @@ namespace GOCD.Framework
             {
                 _releasedInstances.Remove(go);
                 _activeInstances.Add(go);
+                _pendingInstances.Remove(go);
                 _instanceToPrefab[go] = prefab;
             }
             return go;
@@ -95,28 +100,46 @@ namespace GOCD.Framework
         public static void Release(PoolPrefabConfig config, GameObject instance)
         {
             if (config == null || !instance) return;
-            if (_releasedInstances.Contains(instance)) return;
+            if (_releasedInstances.Contains(instance) || _pendingInstances.Contains(instance)) return;
 
             if (!TryScheduleIfDirty(instance, config.prefab))
             {
+                // Clean ngay → trả pool ngay
                 _releasedInstances.Add(instance);
                 _activeInstances.Remove(instance);
                 _instanceToPrefab.Remove(instance);
                 GetPool(config).Release(instance);
+            }
+            else
+            {
+                // Dirty → pending, chờ scheduler xử lý xong
+                _pendingInstances.Add(instance);
+                _activeInstances.Remove(instance);
+                _instanceToPrefab.Remove(instance);
+                PoolReleaseScheduler.Enqueue(config.prefab, instance);
             }
         }
 
         public static void Release(GameObject prefab, GameObject instance)
         {
             if (!prefab || !instance) return;
-            if (_releasedInstances.Contains(instance)) return;
+            if (_releasedInstances.Contains(instance) || _pendingInstances.Contains(instance)) return;
 
             if (!TryScheduleIfDirty(instance, prefab))
             {
+                // Clean ngay → trả pool ngay
                 _releasedInstances.Add(instance);
                 _activeInstances.Remove(instance);
                 _instanceToPrefab.Remove(instance);
                 GetPool(prefab).Release(instance);
+            }
+            else
+            {
+                // Dirty → pending, chờ scheduler xử lý xong
+                _pendingInstances.Add(instance);
+                _activeInstances.Remove(instance);
+                _instanceToPrefab.Remove(instance);
+                PoolReleaseScheduler.Enqueue(prefab, instance);
             }
         }
 
@@ -128,8 +151,7 @@ namespace GOCD.Framework
                 var h = handlers[i];
                 if (h != null && h.IsDirty)
                 {
-                    PoolReleaseScheduler.Enqueue(prefab, instance);
-                    return true;
+                    return true; // dirty → để scheduler xử lý
                 }
             }
             return false;
@@ -152,6 +174,7 @@ namespace GOCD.Framework
 
         // =================== CHECK / WAIT / FORCE ==============
         public static bool IsReleased(GameObject instance) => instance && _releasedInstances.Contains(instance);
+        public static bool IsPending(GameObject instance) => instance && _pendingInstances.Contains(instance);
         public static int ActiveCount => _activeInstances.Count;
 
         public static UniTask FlushAsync(int maxPerFrame = 256) => PoolReleaseScheduler.FlushAsync(maxPerFrame);
@@ -196,6 +219,19 @@ namespace GOCD.Framework
                 }
             }
             await FlushAndWaitIdleAsync(timeoutSeconds, flushBatch);
+        }
+
+        // Scheduler gọi khi cleanup xong
+        internal static void MarkAsReleased(GameObject prefab, GameObject inst)
+        {
+            if (!inst) return;
+
+            _pendingInstances.Remove(inst);
+            _releasedInstances.Add(inst);
+            if (_instanceToPrefab.ContainsKey(inst))
+                _instanceToPrefab.Remove(inst);
+
+            GetPool(prefab).Release(inst);
         }
     }
 }
