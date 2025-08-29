@@ -101,6 +101,8 @@ namespace GOCD.Framework
         {
             if (config == null || !instance) return;
             if (_releasedInstances.Contains(instance) || _pendingInstances.Contains(instance)) return;
+            
+            instance.SetActive(false);
 
             if (!TryScheduleIfDirty(instance, config.prefab))
             {

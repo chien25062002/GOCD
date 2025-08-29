@@ -56,7 +56,7 @@ namespace GOCD.Framework
 
             _spawnAtStart = config.spawnAtStart;
             
-            EnsurePoolCount();
+            EnsurePoolCount().Forget();
         }
 
         public PoolPrefab(GameObject prefab)
