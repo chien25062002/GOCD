@@ -26,19 +26,29 @@ namespace GOCD.Framework
                     if (!_root) return _root;
 
                     Canvas selected = null;
+                    PopupRootSetter rootSetter = null;
 
                     foreach (var canvas in all)
                     {
                         if (canvas && canvas.renderMode == RenderMode.ScreenSpaceOverlay)
                         {
+                            rootSetter = canvas.GetComponentInChildren<PopupRootSetter>();
+                            
                             if (selected == null)
                             {
                                 if (canvas.enabled)
+                                {
                                     selected = canvas;
+                                }
+                                
+                                if (rootSetter == null)
+                                {
+                                    selected = null;
+                                }
                             }
                             else
                             {
-                                if (selected.GetComponentInChildren<PopupRootSetter>() == null)
+                                if (rootSetter == null)
                                 {
                                     selected = null;
                                     continue;
@@ -48,8 +58,10 @@ namespace GOCD.Framework
                             }
                         }
                     }
+
+                    if (rootSetter) _root = rootSetter.transform;
                     
-                    if (selected)
+                    if (!_root && selected)
                         _root = selected.transform;
                     
                 }
