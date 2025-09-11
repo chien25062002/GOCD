@@ -79,12 +79,12 @@ namespace GOCD.Framework
 
         public async UniTask EnsurePoolCount(int maxPerFrame = 10)
         {
-            _token?.Cancel();    // huỷ vòng cũ
+            _token?.Cancel(); // huỷ vòng cũ nếu có
             _token = new CancelToken();
-            var ct = _token.Token;   // lấy CancellationToken của bạn
-    
-            // init number of spawn at start in here
-            int needToSpawn = Mathf.Max(0, _spawnAtStart - _pool.CountAll);
+            var ct = _token.Token;
+
+            // số lượng cần warm thêm
+            int needToSpawn = Mathf.Max(0, _spawnAtStart - _pool.CountAll - _pool.CountInactive);
             int c = 0;
 
             try
@@ -93,7 +93,9 @@ namespace GOCD.Framework
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    var go = _pool.Get();   // _warming flag như đã bàn
+                    // ✅ Tạo mới bằng Create()
+                    var go = Create();
+                    // ✅ Đưa object này vào pool quản lý
                     _pool.Release(go);
 
                     c++;
@@ -106,7 +108,7 @@ namespace GOCD.Framework
             }
             catch (OperationCanceledException)
             {
-                // silent cancel
+                
             }
         }
         
