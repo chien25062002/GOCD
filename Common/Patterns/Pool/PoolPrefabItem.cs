@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -6,17 +7,31 @@ namespace GOCD.Framework
 {
     public class PoolPrefabItem : MonoBase
     {
-        [Title("Config")]
-        [SerializeField] PoolPrefabConfig _config;
+        [Title("Config")] [SerializeField] PoolPrefabConfig _config;
 
         bool _subscribed;
 
+        // ===== Cache sẵn IPoolPreRelease để không gọi GetComponents mỗi lần =====
+        IPoolPreRelease[] _cachedHandlers;
+        bool _cachedHandlersReady;
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public IPoolPreRelease[] GetCachedHandlers() => _cachedHandlers;
+
         protected virtual void Awake()
         {
-            // Nếu item cần tồn tại cross-scene thì đảm bảo nằm trong DDOL
             if (_config != null && _config.dontDestroyOnLoad)
             {
+                if (transform.parent != null)
+                    transform.SetParent(null, false);
                 DontDestroyOnLoad(gameObject);
+            }
+
+            // Cache IPoolPreRelease ngay khi object được tạo
+            if (!_cachedHandlersReady)
+            {
+                _cachedHandlers = GetComponentsInChildren<IPoolPreRelease>(true);
+                _cachedHandlersReady = true;
             }
         }
 
@@ -34,7 +49,8 @@ namespace GOCD.Framework
         void TrySubscribe()
         {
             if (_subscribed) return;
-            if (_config != null && _config.dontDestroyOnLoad && !MonoCallback.IsDestroyed && MonoCallback.Instance != null)
+            if (_config != null && _config.dontDestroyOnLoad && !MonoCallback.IsDestroyed &&
+                MonoCallback.Instance != null)
             {
                 MonoCallback.Instance.EventActiveSceneChanged += MonoCallback_EventActiveSceneChanged;
                 _subscribed = true;
@@ -51,26 +67,31 @@ namespace GOCD.Framework
         {
             TryUnsubscribe();
             gameObject.ClearComponentCache();
+
+            // clear cache nhỏ (không cần thiết nhưng an toàn)
+            _cachedHandlers = null;
+            _cachedHandlersReady = false;
         }
 
         void TryUnsubscribe()
         {
             if (!_subscribed) return;
-            if (!MonoCallback.IsDestroyed && MonoCallback.Instance != null)
+            if (!MonoCallback.IsDestroyed && MonoCallback.hasInstance)
             {
                 MonoCallback.Instance.EventActiveSceneChanged -= MonoCallback_EventActiveSceneChanged;
             }
+
             _subscribed = false;
         }
 
         void MonoCallback_EventActiveSceneChanged(Scene sceneCurrent, Scene sceneNext)
         {
             // ====== GUARDS RẤT QUAN TRỌNG ======
-            if (!this) return;                    // Unity fake-null on destroyed component
+            if (!this) return; // Unity fake-null on destroyed component
             if (!gameObject) return;
             if (_config == null) return;
 
-            var go = GameObjectCached;            // có thể fake-null
+            var go = GameObjectCached; // có thể fake-null
             if (!go) return;
 
             // Nếu đã release vào pool rồi -> bỏ qua

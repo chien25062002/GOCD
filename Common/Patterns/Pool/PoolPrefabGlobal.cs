@@ -1,5 +1,7 @@
 // PoolPrefabGlobal.cs
+
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -8,11 +10,42 @@ namespace GOCD.Framework
 {
     public static class PoolPrefabGlobal
     {
-        static readonly Dictionary<GameObject, PoolPrefab> _poolLookup       = new();
-        static readonly HashSet<GameObject>                _releasedInstances = new();
-        static readonly HashSet<GameObject>                _activeInstances   = new();
-        static readonly HashSet<GameObject>                _pendingInstances  = new();   // NEW
-        static readonly Dictionary<GameObject, GameObject> _instanceToPrefab  = new();
+        static readonly Dictionary<GameObject, PoolPrefab> _poolLookup = new();
+        static readonly HashSet<GameObject> _releasedInstances = new();
+        static readonly HashSet<GameObject> _activeInstances = new();
+        static readonly HashSet<GameObject> _pendingInstances = new();
+        static readonly Dictionary<GameObject, GameObject> _instanceToPrefab = new();
+
+        // =============== NEW: Cache cho component type ====================
+        static readonly Dictionary<(GameObject, System.Type), Component> _cachedComponents = new(512);
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static T GetCachedComponent<T>(GameObject go) where T : Component
+        {
+            if (!go) return null;
+            var key = (go, typeof(T));
+            if (_cachedComponents.TryGetValue(key, out var c))
+                return (T)c;
+
+            var comp = go.GetComponent<T>();
+            _cachedComponents[key] = comp;
+            return comp;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static void RemoveCachedComponents(GameObject go)
+        {
+            if (!go) return;
+            // xóa nhanh không GC
+            var keysToRemove = new List<(GameObject, System.Type)>();
+            foreach (var kv in _cachedComponents)
+                if (kv.Key.Item1 == go)
+                    keysToRemove.Add(kv.Key);
+
+            for (int i = 0; i < keysToRemove.Count; i++)
+                _cachedComponents.Remove(keysToRemove[i]);
+        }
+        // ===================================================================
 
         [RuntimeInitializeOnLoadMethod]
         static void Init()
@@ -29,6 +62,7 @@ namespace GOCD.Framework
             _activeInstances.Clear();
             _pendingInstances.Clear();
             _instanceToPrefab.Clear();
+            _cachedComponents.Clear();
 
             foreach (PoolPrefab pool in _poolLookup.Values)
             {
@@ -44,6 +78,7 @@ namespace GOCD.Framework
             _activeInstances.Clear();
             _pendingInstances.Clear();
             _instanceToPrefab.Clear();
+            _cachedComponents.Clear();
 
             foreach (PoolPrefab pool in _poolLookup.Values)
             {
@@ -80,6 +115,7 @@ namespace GOCD.Framework
                 _pendingInstances.Remove(go);
                 _instanceToPrefab[go] = config.prefab;
             }
+
             return go;
         }
 
@@ -93,31 +129,48 @@ namespace GOCD.Framework
                 _pendingInstances.Remove(go);
                 _instanceToPrefab[go] = prefab;
             }
+
             return go;
         }
+
+        // ============ NEW: type-safe Get<T> =============
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Get<T>(PoolPrefabConfig config) where T : Component
+        {
+            var go = Get(config);
+            return GetCachedComponent<T>(go);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static T Get<T>(GameObject prefab) where T : Component
+        {
+            var go = Get(prefab);
+            return GetCachedComponent<T>(go);
+        }
+        // ================================================
 
         // ======================= RELEASE =======================
         public static void Release(PoolPrefabConfig config, GameObject instance)
         {
             if (config == null || !instance) return;
             if (_releasedInstances.Contains(instance) || _pendingInstances.Contains(instance)) return;
-            
+
             instance.SetActive(false);
 
             if (!TryScheduleIfDirty(instance, config.prefab))
             {
-                // Clean ngay → trả pool ngay
                 _releasedInstances.Add(instance);
                 _activeInstances.Remove(instance);
                 _instanceToPrefab.Remove(instance);
+                RemoveCachedComponents(instance);
                 GetPool(config).Release(instance);
             }
             else
             {
-                // Dirty → pending, chờ scheduler xử lý xong
                 _pendingInstances.Add(instance);
                 _activeInstances.Remove(instance);
                 _instanceToPrefab.Remove(instance);
+                RemoveCachedComponents(instance);
                 PoolReleaseScheduler.Enqueue(config.prefab, instance);
             }
         }
@@ -129,21 +182,39 @@ namespace GOCD.Framework
 
             if (!TryScheduleIfDirty(instance, prefab))
             {
-                // Clean ngay → trả pool ngay
                 _releasedInstances.Add(instance);
                 _activeInstances.Remove(instance);
                 _instanceToPrefab.Remove(instance);
+                RemoveCachedComponents(instance);
                 GetPool(prefab).Release(instance);
             }
             else
             {
-                // Dirty → pending, chờ scheduler xử lý xong
                 _pendingInstances.Add(instance);
                 _activeInstances.Remove(instance);
                 _instanceToPrefab.Remove(instance);
+                RemoveCachedComponents(instance);
                 PoolReleaseScheduler.Enqueue(prefab, instance);
             }
         }
+
+        // ============ NEW: type-safe Release<T> =============
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Release<T>(PoolPrefabConfig config, T inst) where T : Component
+        {
+            if (!inst) return;
+            RemoveCachedComponents(inst.gameObject);
+            Release(config, inst.gameObject);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Release<T>(GameObject prefab, T inst) where T : Component
+        {
+            if (!inst) return;
+            RemoveCachedComponents(inst.gameObject);
+            Release(prefab, inst.gameObject);
+        }
+        // =====================================================
 
         static bool TryScheduleIfDirty(GameObject instance, GameObject prefab)
         {
@@ -156,6 +227,7 @@ namespace GOCD.Framework
                     return true; // dirty → để scheduler xử lý
                 }
             }
+
             return false;
         }
 
@@ -187,7 +259,8 @@ namespace GOCD.Framework
             while ((ActiveCount > 0 || PoolReleaseScheduler.PendingCount > 0) &&
                    Time.realtimeSinceStartup < end)
             {
-                await Cysharp.Threading.Tasks.UniTask.Yield(Cysharp.Threading.Tasks.PlayerLoopTiming.LastPostLateUpdate);
+                await Cysharp.Threading.Tasks.UniTask.Yield(Cysharp.Threading.Tasks.PlayerLoopTiming
+                    .LastPostLateUpdate);
             }
         }
 
@@ -214,12 +287,14 @@ namespace GOCD.Framework
                 }
                 else
                 {
+                    RemoveCachedComponents(inst);
                     Object.Destroy(inst);
                     _activeInstances.Remove(inst);
                     _releasedInstances.Add(inst);
                     _instanceToPrefab.Remove(inst);
                 }
             }
+
             await FlushAndWaitIdleAsync(timeoutSeconds, flushBatch);
         }
 
@@ -233,6 +308,7 @@ namespace GOCD.Framework
             if (_instanceToPrefab.ContainsKey(inst))
                 _instanceToPrefab.Remove(inst);
 
+            RemoveCachedComponents(inst);
             GetPool(prefab).Release(inst);
         }
     }
