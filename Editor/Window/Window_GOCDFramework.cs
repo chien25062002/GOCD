@@ -2,13 +2,13 @@
 using UnityEditor;
 using UnityEngine;
 using GOCD.Framework.Internet;
+using UnityEditor.Build;
 
 namespace GOCD.Framework.Editor
 {
     public class Window_GOCDFramework : EditorWindow
     {
         const string INTERNET_DEFINE = "INTERNET_CHECK";
-        const string GOCD_VIEW_HELPER_DEFINE = "GOCD_VIEW_HELPER_GUID";
 
         int _tab = 0;
         static readonly string[] _tabs = { "Internet" };
@@ -52,20 +52,12 @@ namespace GOCD.Framework.Editor
             using (new EditorGUILayout.VerticalScope("box"))
             {
                 EditorGUILayout.LabelField("Scripting Define Symbols", EditorStyles.boldLabel);
+
                 bool hasInternet = defines.Contains(INTERNET_DEFINE);
                 bool newHasInternet = EditorGUILayout.ToggleLeft($"Enable {INTERNET_DEFINE}", hasInternet);
                 if (newHasInternet != hasInternet)
                 {
                     SetDefine(group, INTERNET_DEFINE, newHasInternet);
-                }
-
-                bool hasGuid = defines.Contains(GOCD_VIEW_HELPER_DEFINE);
-                bool newHasGuid =
-                    EditorGUILayout.ToggleLeft(
-                        $"Enable {GOCD_VIEW_HELPER_DEFINE} (nếu có ViewHelper.PushAsync(string))", hasGuid);
-                if (newHasGuid != hasGuid)
-                {
-                    SetDefine(group, GOCD_VIEW_HELPER_DEFINE, newHasGuid);
                 }
             }
 
@@ -75,8 +67,7 @@ namespace GOCD.Framework.Editor
             using (new EditorGUILayout.VerticalScope("box"))
             {
                 EditorGUILayout.LabelField("Internet Settings", EditorStyles.boldLabel);
-                _settings = (InternetSettings)EditorGUILayout.ObjectField("Asset", _settings, typeof(InternetSettings),
-                    false);
+                _settings = (InternetSettings)EditorGUILayout.ObjectField("Asset", _settings, typeof(InternetSettings), false);
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
@@ -104,11 +95,9 @@ namespace GOCD.Framework.Editor
                         EditorGUILayout.FloatField("Check Interval (s)", Mathf.Max(1f, _settings.checkInterval));
 
                     EditorGUILayout.Space();
-                    _settings.internetViewPrefab = (GameObject)EditorGUILayout.ObjectField("Internet View Prefab",
+                    _settings.internetViewPrefab = (GameObject)EditorGUILayout.ObjectField(
+                        new GUIContent("Internet Popup Prefab"),
                         _settings.internetViewPrefab, typeof(GameObject), false);
-                    _settings.factoryGuid = EditorGUILayout.TextField(
-                        new GUIContent("Factory GUID", "Chỉ dùng nếu đã bật GOCD_VIEW_HELPER_GUID"),
-                        _settings.factoryGuid);
 
                     if (EditorGUI.EndChangeCheck())
                     {
@@ -121,16 +110,17 @@ namespace GOCD.Framework.Editor
                     using (new EditorGUI.DisabledScope(!Application.isPlaying))
                     {
                         EditorGUILayout.LabelField("Runtime Tools", EditorStyles.boldLabel);
+
                         if (GUILayout.Button("Open Popup (No Internet)"))
                         {
-                            // Mở popup bất kể trạng thái mạng: giả lập not available
+                            // Mở popup bất kể trạng thái mạng: giả lập offline
                             InternetHelper.CurrentSettings = _settings;
                             ForceOpenPopup();
                         }
 
                         if (GUILayout.Button("Close Popup"))
                         {
-                            if (InternetHelper.InternetView) InternetHelper.InternetView.Close();
+                            if (InternetHelper.InternetPopup) InternetHelper.InternetPopup.Close();
                         }
 
                         if (GUILayout.Button("Force Check Now"))
@@ -138,8 +128,11 @@ namespace GOCD.Framework.Editor
                             Internet_Checker.ForceCheckNow();
                         }
 
-                        EditorGUILayout.LabelField("Status:",
-                            $"IsInternetAvailable={InternetHelper.IsInternetAvailable}, PopupOpen={(InternetHelper.InternetView && InternetHelper.InternetView.gameObject.activeInHierarchy)}");
+                        EditorGUILayout.LabelField(
+                            "Status:",
+                            $"IsInternetAvailable={InternetHelper.IsInternetAvailable}, " +
+                            $"PopupOpen={(InternetHelper.InternetPopup && InternetHelper.InternetPopup.gameObject.activeInHierarchy)}"
+                        );
                     }
                 }
                 else
@@ -194,8 +187,10 @@ namespace GOCD.Framework.Editor
 
         static void GetDefines(BuildTargetGroup group, out string defines)
         {
-#if UNITY_2023_1_OR_NEWER
-            defines = PlayerSettings.GetScriptingDefineSymbols(group);
+#if UNITY_6000_0_OR_NEWER
+            defines = PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group));
+#elif UNITY_2023_1_OR_NEWER
+    defines = PlayerSettings.GetScriptingDefineSymbols(group);
 #else
             defines = PlayerSettings.GetScriptingDefineSymbolsForGroup(group);
 #endif
@@ -211,19 +206,38 @@ namespace GOCD.Framework.Editor
             else set.Remove(symbol);
 
             var joined = string.Join(";", set);
-#if UNITY_2023_1_OR_NEWER
+
+#if UNITY_6000_0_OR_NEWER
+            PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget.FromBuildTargetGroup(group), joined);
+#elif UNITY_2023_1_OR_NEWER
             PlayerSettings.SetScriptingDefineSymbols(group, joined);
 #else
             PlayerSettings.SetScriptingDefineSymbolsForGroup(group, joined);
 #endif
         }
 
-        static async void ForceOpenPopup()
+        static void ForceOpenPopup()
         {
-            // Giả lập: đánh dấu offline rồi yêu cầu mở view.
-            typeof(InternetHelper).GetProperty("IsInternetAvailable")?
-                .SetValue(null, false, null);
-            await InternetHelper.CheckInternetWithView();
+            if (!Application.isPlaying) return;
+
+            var settings = InternetHelper.CurrentSettings;
+            if (settings == null || settings.internetViewPrefab == null)
+            {
+                Debug.LogWarning("[GOCD] InternetSettings hoặc Internet Popup Prefab chưa được gán.");
+                return;
+            }
+
+            // Đóng popup cũ nếu còn 
+            if (InternetHelper.InternetPopup != null && InternetHelper.InternetPopup.gameObject)
+                InternetHelper.InternetPopup.Close();
+
+            // Mở popup trực tiếp bằng PopupManager (không cần check mạng)
+            var popup = PopupManager.Create(settings.internetViewPrefab);
+            InternetHelper.InternetPopup = popup;
+            PopupManager.PushToStack(popup, isTopHidden: false);
+
+            // Đánh dấu registry để tránh mở trùng nếu bấm nhiều lần
+            InternetHelper.RegisterUI(popup.transform);
         }
     }
 }
