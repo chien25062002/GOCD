@@ -4,23 +4,24 @@ using UnityEngine.EventSystems;
 
 namespace CFramework
 {
-    public class UIPointerDrag : MonoBehaviour, IDragHandler, IEndDragHandler, IBeginDragHandler
+    public class UIPointerDrag : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
     {
-        public event Action<PointerEventData> eventDragBegin;
-        public event Action<PointerEventData> eventDrag;
-        public event Action<PointerEventData> eventDragEnd;
+        public Action<PointerEventData> eventDragBegin;
+        public Action<PointerEventData> eventDrag;
+        public Action<PointerEventData> eventDragEnd;
 
-        void IBeginDragHandler.OnBeginDrag(PointerEventData eventData)
+        // ✅ Dùng public virtual thay vì explicit interface → có thể override
+        public virtual void OnBeginDrag(PointerEventData eventData)
         {
             eventDragBegin?.Invoke(eventData);
         }
 
-        void IDragHandler.OnDrag(PointerEventData eventData)
+        public virtual void OnDrag(PointerEventData eventData)
         {
             eventDrag?.Invoke(eventData);
         }
 
-        void IEndDragHandler.OnEndDrag(PointerEventData eventData)
+        public virtual void OnEndDrag(PointerEventData eventData)
         {
             eventDragEnd?.Invoke(eventData);
         }
