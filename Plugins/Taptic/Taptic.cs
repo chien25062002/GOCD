@@ -4,10 +4,7 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
-namespace Taptic
-{
-    public class Taptic : MonoBehaviour
-    {
+public class Taptic : MonoBehaviour {
 
 #if UNITY_IOS
         [DllImport("__Internal")]
@@ -18,12 +15,10 @@ namespace Taptic
 
         public static bool tapticOn = true;
 
-        public static void Warning()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Warning() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS
                 if (iPhone6s()) {
                         _PlayTaptic6s("warning");
@@ -31,15 +26,13 @@ namespace Taptic
                         _PlayTaptic("warning");
                 }
 #elif UNITY_ANDROID
-            AndroidTaptic.Haptic(HapticTypes.Warning);
+                AndroidTaptic.Haptic(HapticTypes.Warning);
 #endif
         }
-        public static void Failure()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Failure() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS
                 if (iPhone6s()) {
                         _PlayTaptic6s("failure");
@@ -47,15 +40,13 @@ namespace Taptic
                         _PlayTaptic("failure");
                 }
 #elif UNITY_ANDROID
-            AndroidTaptic.Haptic(HapticTypes.Failure);
+                AndroidTaptic.Haptic(HapticTypes.Failure);
 #endif
         }
-        public static void Success()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Success() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS
                 if (iPhone6s()) {
                         _PlayTaptic6s("success");
@@ -63,15 +54,13 @@ namespace Taptic
                         _PlayTaptic("success");
                 }
 #elif UNITY_ANDROID
-            AndroidTaptic.Haptic(HapticTypes.Success);
+                AndroidTaptic.Haptic(HapticTypes.Success);
 #endif
         }
-        public static void Light()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Light() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS
                 if (iPhone6s()) {
                         _PlayTaptic6s("light");
@@ -79,15 +68,13 @@ namespace Taptic
                         _PlayTaptic("light");
                 }
 #elif UNITY_ANDROID
-            AndroidTaptic.Haptic(HapticTypes.LightImpact);
+                AndroidTaptic.Haptic(HapticTypes.LightImpact);
 #endif
         }
-        public static void Medium()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Medium() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS
                 if (iPhone6s()) {
                         _PlayTaptic6s("medium");
@@ -95,15 +82,13 @@ namespace Taptic
                         _PlayTaptic("medium");
                 }
 #elif UNITY_ANDROID
-            AndroidTaptic.Haptic(HapticTypes.MediumImpact);
+                AndroidTaptic.Haptic(HapticTypes.MediumImpact);
 #endif
         }
-        public static void Heavy()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Heavy() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS
                 if (iPhone6s()) {
                         _PlayTaptic6s("heavy");
@@ -111,25 +96,21 @@ namespace Taptic
                         _PlayTaptic("heavy");
                 }
 #elif UNITY_ANDROID
-            AndroidTaptic.Haptic(HapticTypes.HeavyImpact);
+                AndroidTaptic.Haptic(HapticTypes.HeavyImpact);
 #endif
         }
-        public static void Default()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Default() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS || UNITY_ANDROID
-            Handheld.Vibrate();
+                Handheld.Vibrate();
 #endif
         }
-        public static void Vibrate()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Vibrate() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS
                 if (iPhone6s()) {
                         _PlayTaptic6s("medium");
@@ -137,15 +118,13 @@ namespace Taptic
                         _PlayTaptic("medium");
                 }
 #elif UNITY_ANDROID
-            AndroidTaptic.Vibrate();
+                AndroidTaptic.Vibrate();
 #endif
         }
-        public static void Selection()
-        {
-            if (!tapticOn || Application.isEditor)
-            {
-                return;
-            }
+        public static void Selection() {
+                if (!tapticOn || Application.isEditor) {
+                        return;
+                }
 #if UNITY_IOS
                 if (iPhone6s()) {
                         _PlayTaptic6s("selection");
@@ -153,14 +132,12 @@ namespace Taptic
                         _PlayTaptic("selection");
                 }
 #elif UNITY_ANDROID
-            AndroidTaptic.Haptic(HapticTypes.Selection);
+                AndroidTaptic.Haptic(HapticTypes.Selection);
 #endif
         }
 
-        static bool iPhone6s()
-        {
-            return SystemInfo.deviceModel == "iPhone8,1" || SystemInfo.deviceModel == "iPhone8,2";
+        static bool iPhone6s() {
+                return SystemInfo.deviceModel == "iPhone8,1" || SystemInfo.deviceModel == "iPhone8,2";
         }
 
-    }
 }

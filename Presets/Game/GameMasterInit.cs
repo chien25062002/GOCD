@@ -29,14 +29,14 @@ namespace Game
             DataSettings.MusicVolume.OnValueChanged += (volume) => { AudioManager.volumeMusic.value = volume; };
             DataSettings.SoundVolume.OnValueChanged += (volume) => { AudioManager.volumeSound.value = volume; };
 
-            Taptic.Taptic.tapticOn = DataSettings.Vibration.value;
+            Taptic.tapticOn = DataSettings.Vibration.value;
 
             DataSettings.Vibration.OnValueChanged += SettingsVibrationValue_EventValueChanged;
         }
         
         static void SettingsVibrationValue_EventValueChanged(bool isOn)
         {
-            Taptic.Taptic.tapticOn = isOn;
+            Taptic.tapticOn = isOn;
         }
         
         #endregion

@@ -1,10 +1,10 @@
-// PoolPrefab.cs
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Pool;
+using Object = UnityEngine.Object;
 
 namespace GOCD.Framework
 {
@@ -12,31 +12,33 @@ namespace GOCD.Framework
     {
         const int DefaultCapacity = 16;
         const int MaxSize = 4096;
-        
+
         readonly GameObject _prefab;
         readonly bool _dontDestroyOnLoad;
         readonly ObjectPool<GameObject> _pool;
 
-        CancelToken _token;
-        int _spawnAtStart;
-
-        // Cache PoolPrefabItem để bỏ GetComponent
         readonly Dictionary<GameObject, PoolPrefabItem> _itemCache = new(256);
+        readonly List<GameObject> _allCreated = new(128);
 
-        // ===== PoolRoot để giữ inactive items an toàn =====
+        int _spawnAtStart;
+        public bool skipSetInactive;
+        public PoolPrefabConfig Config { get; }
+
         static Transform s_PoolRoot;
-        static Transform PoolRoot {
-            get {
-                if (s_PoolRoot == null) {
+        static Transform PoolRoot
+        {
+            get
+            {
+                if (s_PoolRoot == null)
+                {
                     var go = new GameObject("__PoolRoot");
-                    UnityEngine.Object.DontDestroyOnLoad(go);
+                    if (Application.isPlaying)
+                        Object.DontDestroyOnLoad(go);
                     s_PoolRoot = go.transform;
                 }
                 return s_PoolRoot;
             }
         }
-
-        public PoolPrefabConfig Config { get; }
 
         public PoolPrefab(PoolPrefabConfig config)
         {
@@ -46,18 +48,13 @@ namespace GOCD.Framework
             Config = config;
             _prefab = config.prefab;
             _dontDestroyOnLoad = config.dontDestroyOnLoad;
+            _spawnAtStart = config.spawnAtStart;
 
             _pool = new ObjectPool<GameObject>(
-                createFunc: Create,
-                actionOnGet: OnGet,
-                actionOnRelease: OnRelease,
-                actionOnDestroy: OnDestroy,
-                collectionCheck: false,
-                defaultCapacity: config.spawnCapacity,
-                maxSize: config.spawnCapacityMax
+                Create, OnGet, OnRelease, OnDestroy,
+                false, config.spawnCapacity, config.spawnCapacityMax
             );
 
-            _spawnAtStart = config.spawnAtStart;
             EnsurePoolCount();
         }
 
@@ -69,67 +66,33 @@ namespace GOCD.Framework
             Config = null;
 
             _pool = new ObjectPool<GameObject>(
-                createFunc: Create,
-                actionOnGet: OnGet,
-                actionOnRelease: OnRelease,
-                actionOnDestroy: OnDestroy,
-                collectionCheck: false,
-                defaultCapacity: DefaultCapacity,
-                maxSize: MaxSize
+                Create, OnGet, OnRelease, OnDestroy,
+                false, DefaultCapacity, MaxSize
             );
         }
 
-        public async UniTask EnsurePoolCount(int maxPerFrame = 10)
+        public void EnsurePoolCount()
         {
-            _token?.Cancel();    
-            _token = new CancelToken();
-            var ct = _token.Token;
-    
-            int needToSpawn = Mathf.Max(0, _spawnAtStart - _pool.CountAll);
-            int c = 0;
-
-            try
+            while (_pool.CountInactive < _spawnAtStart)
             {
-                for (int i = 0; i < needToSpawn; i++)
-                {
-                    ct.ThrowIfCancellationRequested();
-
-                    var go = _pool.Get();
-                    _pool.Release(go);
-
-                    c++;
-                    if (c >= maxPerFrame)
-                    {
-                        c = 0;
-                        await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate, ct);
-                    }
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                // silent cancel
+                var go = Create();
+                _pool.Release(go);
             }
         }
-        
+
         GameObject Create()
         {
             GameObject go;
-
-            if (_dontDestroyOnLoad)
+            if (_dontDestroyOnLoad && Application.isPlaying)
             {
-                go = UnityEngine.Object.Instantiate(_prefab);
-                UnityEngine.Object.DontDestroyOnLoad(go);
+                go = Object.Instantiate(_prefab);
+                Object.DontDestroyOnLoad(go);
             }
-            else
-            {
-                go = UnityEngine.Object.Instantiate(_prefab, PoolRoot, false);
-            }
+            else go = Object.Instantiate(_prefab, PoolRoot, false);
 
-            // Cache PoolPrefabItem nếu có
             var item = go.GetComponent<PoolPrefabItem>();
-            if (item != null)
-                _itemCache[go] = item;
-
+            if (item != null) _itemCache[go] = item;
+            _allCreated.Add(go);
             go.SetActive(false);
             return go;
         }
@@ -142,83 +105,61 @@ namespace GOCD.Framework
             go.SetActive(true);
         }
 
-        // ====================== ON RELEASE (siêu tối ưu) ======================
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void OnRelease(GameObject go)
         {
             if (!go) return;
 
-            // ✅ Dọn dẹp cực nhanh, zero GetComponent
             if (_itemCache.TryGetValue(go, out var cachedItem) && cachedItem != null)
             {
                 var handlers = cachedItem.GetCachedHandlers();
                 if (handlers != null)
                 {
                     for (int i = 0; i < handlers.Length; i++)
-                    {
-                        try { handlers[i]?.OnBeforeReleaseToPool(); }
-                        catch (Exception ex) { Debug.LogException(ex); }
-                    }
+                        handlers[i]?.OnBeforeReleaseToPool();
                 }
             }
             else
             {
-                // fallback nếu chưa có cache (prefab không có PoolPrefabItem)
                 var handlers = go.GetComponentsInChildren<IPoolPreRelease>(true);
                 for (int i = 0; i < handlers.Length; i++)
-                {
-                    try { handlers[i]?.OnBeforeReleaseToPool(); }
-                    catch (Exception ex) { Debug.LogException(ex); }
-                }
+                    handlers[i]?.OnBeforeReleaseToPool();
 
-                // Nếu prefab này có PoolPrefabItem, cache lại để lần sau nhanh
                 var newItem = go.GetComponent<PoolPrefabItem>();
-                if (newItem != null)
-                    _itemCache[go] = newItem;
+                if (newItem != null) _itemCache[go] = newItem;
             }
 
-            go.SetActive(false);
+            if (skipSetInactive)
+                go.transform.position = new Vector3(99999f, -99999f, 99999f);
+            else
+                go.SetActive(false);
+
             go.transform.SetParent(PoolRoot, false);
         }
-        // ===================================================================
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void OnDestroy(GameObject go)
         {
             if (!go) return;
 #if UNITY_EDITOR
-            UnityEngine.Object.DestroyImmediate(go);
+            Object.DestroyImmediate(go);
 #else
-            UnityEngine.Object.Destroy(go);
+            Object.Destroy(go);
 #endif
             _itemCache.Remove(go);
+            _allCreated.Remove(go);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public GameObject Get()
         {
-            for (int i = 0; i < 8; i++)
-            {
-                var go = _pool.Get();
-                if (go) return go;
-            }
+            var go = _pool.Get();
+            if (go) return go;
 
-            GameObject fallback;
-            if (_dontDestroyOnLoad)
-            {
-                fallback = UnityEngine.Object.Instantiate(_prefab);
-                UnityEngine.Object.DontDestroyOnLoad(fallback);
-            }
-            else
-            {
-                fallback = UnityEngine.Object.Instantiate(_prefab, PoolRoot, false);
-            }
-
-            // Cache luôn nếu có PoolPrefabItem
+            var fallback = Object.Instantiate(_prefab, PoolRoot, false);
             var item = fallback.GetComponent<PoolPrefabItem>();
-            if (item != null)
-                _itemCache[fallback] = item;
-
+            if (item != null) _itemCache[fallback] = item;
+            _allCreated.Add(fallback);
             fallback.SetActive(true);
             return fallback;
         }
@@ -226,11 +167,34 @@ namespace GOCD.Framework
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Release(GameObject instance)
         {
-            if (!instance) return;
-            _pool.Release(instance);
+            if (instance) _pool.Release(instance);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Clear() => _pool.Clear();
+
+        public void DestroyAll()
+        {
+            _pool.Clear();
+
+            for (int i = 0; i < _allCreated.Count; i++)
+            {
+                var go = _allCreated[i];
+                if (go != null) Object.Destroy(go);
+            }
+
+            _allCreated.Clear();
+            _itemCache.Clear();
+        }
+
+        // 🧹 Tự hủy PoolRoot nếu không còn pool nào
+        internal static void TryDestroyRootIfEmpty()
+        {
+            if (s_PoolRoot != null && s_PoolRoot.childCount == 0)
+            {
+                Object.Destroy(s_PoolRoot.gameObject);
+                s_PoolRoot = null;
+            }
+        }
     }
 }

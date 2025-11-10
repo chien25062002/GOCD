@@ -137,7 +137,8 @@ namespace GOCD.Framework
                 if (h is IAsyncPoolPreRelease asyncH)
                     await asyncH.OnBeforeReleaseToPoolAsync();
                 
-                await UniTask.DelayFrame(2);
+                if (i % 32 == 0)
+                    await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
             }
 
             await UniTask.Yield();

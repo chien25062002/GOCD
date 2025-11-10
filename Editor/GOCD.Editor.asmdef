@@ -3,8 +3,8 @@
     "rootNamespace": "GOCD.Framework.Editor",
     "references": [
         "GUID:4a406af209b8747498480304eba12888",
-        "GUID:7ec8ea7dbc1125f069d458f172d76274",
-        "GUID:f51ebe6a0ceec4240a699833d6309b23"
+        "GUID:f51ebe6a0ceec4240a699833d6309b23",
+        "GUID:108ac46ce0712a94397fd41526b767cc"
     ],
     "includePlatforms": [
         "Editor"

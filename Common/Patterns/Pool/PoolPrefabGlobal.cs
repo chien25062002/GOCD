@@ -1,8 +1,7 @@
-// PoolPrefabGlobal.cs
-
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Cysharp.Threading.Tasks;
+using GOCD.Framework.Diagnostics;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -16,7 +15,7 @@ namespace GOCD.Framework
         static readonly HashSet<GameObject> _pendingInstances = new();
         static readonly Dictionary<GameObject, GameObject> _instanceToPrefab = new();
 
-        // =============== NEW: Cache cho component type ====================
+        static readonly Vector3 s_MoveFarPosition = new(99999f, -99999f, 99999f);
         static readonly Dictionary<(GameObject, System.Type), Component> _cachedComponents = new(512);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -26,26 +25,10 @@ namespace GOCD.Framework
             var key = (go, typeof(T));
             if (_cachedComponents.TryGetValue(key, out var c))
                 return (T)c;
-
             var comp = go.GetComponent<T>();
             _cachedComponents[key] = comp;
             return comp;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        static void RemoveCachedComponents(GameObject go)
-        {
-            if (!go) return;
-            // xóa nhanh không GC
-            var keysToRemove = new List<(GameObject, System.Type)>();
-            foreach (var kv in _cachedComponents)
-                if (kv.Key.Item1 == go)
-                    keysToRemove.Add(kv.Key);
-
-            for (int i = 0; i < keysToRemove.Count; i++)
-                _cachedComponents.Remove(keysToRemove[i]);
-        }
-        // ===================================================================
 
         [RuntimeInitializeOnLoadMethod]
         static void Init()
@@ -56,19 +39,7 @@ namespace GOCD.Framework
 
         static void MonoCallback_EventActiveSceneChanged(Scene cur, Scene next)
         {
-            PoolReleaseScheduler.ClearQueue();
-
-            _releasedInstances.Clear();
-            _activeInstances.Clear();
-            _pendingInstances.Clear();
-            _instanceToPrefab.Clear();
-            _cachedComponents.Clear();
-
-            foreach (PoolPrefab pool in _poolLookup.Values)
-            {
-                if (pool.Config != null && pool.Config.dontDestroyOnLoad) continue;
-                pool.Clear();
-            }
+            Clean();
         }
 
         public static void Clean()
@@ -80,7 +51,7 @@ namespace GOCD.Framework
             _instanceToPrefab.Clear();
             _cachedComponents.Clear();
 
-            foreach (PoolPrefab pool in _poolLookup.Values)
+            foreach (var pool in _poolLookup.Values)
             {
                 if (pool.Config != null && pool.Config.dontDestroyOnLoad) continue;
                 pool.Clear();
@@ -91,49 +62,46 @@ namespace GOCD.Framework
         {
             for (int i = 0; i < configs.Length; i++)
             {
-                if (!_poolLookup.ContainsKey(configs[i].prefab))
-                    _poolLookup.Add(configs[i].prefab, new PoolPrefab(configs[i]));
+                var cfg = configs[i];
+                if (cfg == null || !cfg.prefab) continue;
+                if (!_poolLookup.ContainsKey(cfg.prefab))
+                    _poolLookup.Add(cfg.prefab, new PoolPrefab(cfg));
             }
         }
 
         public static void EnsurePoolCount()
         {
             foreach (var pool in _poolLookup.Values)
-            {
-                pool.EnsurePoolCount().SuppressCancellationThrow();
-            }
+                pool.EnsurePoolCount();
         }
 
-        // ========================= GET =========================
+        // =========================================================
         public static GameObject Get(PoolPrefabConfig config)
         {
+            if (config == null || !config.prefab) return null;
             var go = GetPool(config).Get();
-            if (go != null)
-            {
-                _releasedInstances.Remove(go);
-                _activeInstances.Add(go);
-                _pendingInstances.Remove(go);
-                _instanceToPrefab[go] = config.prefab;
-            }
+            if (go == null) return null;
 
+            _releasedInstances.Remove(go);
+            _pendingInstances.Remove(go);
+            _activeInstances.Add(go);
+            _instanceToPrefab[go] = config.prefab;
             return go;
         }
 
         public static GameObject Get(GameObject prefab)
         {
+            if (!prefab) return null;
             var go = GetPool(prefab).Get();
-            if (go != null)
-            {
-                _releasedInstances.Remove(go);
-                _activeInstances.Add(go);
-                _pendingInstances.Remove(go);
-                _instanceToPrefab[go] = prefab;
-            }
+            if (go == null) return null;
 
+            _releasedInstances.Remove(go);
+            _pendingInstances.Remove(go);
+            _activeInstances.Add(go);
+            _instanceToPrefab[go] = prefab;
             return go;
         }
 
-        // ============ NEW: type-safe Get<T> =============
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T Get<T>(PoolPrefabConfig config) where T : Component
         {
@@ -147,108 +115,166 @@ namespace GOCD.Framework
             var go = Get(prefab);
             return GetCachedComponent<T>(go);
         }
-        // ================================================
 
-        // ======================= RELEASE =======================
-        public static void Release(PoolPrefabConfig config, GameObject instance)
+        // =========================================================
+        public static void Release(PoolPrefabConfig config, GameObject inst)
         {
-            if (config == null || !instance) return;
-            if (_releasedInstances.Contains(instance) || _pendingInstances.Contains(instance)) return;
+            if (config == null || !inst) return;
+            if (_releasedInstances.Contains(inst) || _pendingInstances.Contains(inst)) return;
 
-            instance.SetActive(false);
+            inst.SetActive(false);
 
-            if (!TryScheduleIfDirty(instance, config.prefab))
+            if (!TryScheduleIfDirty(inst, config.prefab))
             {
-                _releasedInstances.Add(instance);
-                _activeInstances.Remove(instance);
-                _instanceToPrefab.Remove(instance);
-                RemoveCachedComponents(instance);
-                GetPool(config).Release(instance);
+                _releasedInstances.Add(inst);
+                _activeInstances.Remove(inst);
+                _instanceToPrefab.Remove(inst);
+                GetPool(config).Release(inst);
             }
             else
             {
-                _pendingInstances.Add(instance);
-                _activeInstances.Remove(instance);
-                _instanceToPrefab.Remove(instance);
-                RemoveCachedComponents(instance);
-                PoolReleaseScheduler.Enqueue(config.prefab, instance);
+                _pendingInstances.Add(inst);
+                _activeInstances.Remove(inst);
+                _instanceToPrefab.Remove(inst);
+                PoolReleaseScheduler.Enqueue(config.prefab, inst);
             }
         }
 
-        public static void Release(GameObject prefab, GameObject instance)
+        public static void Release(GameObject prefab, GameObject inst)
         {
-            if (!prefab || !instance) return;
-            if (_releasedInstances.Contains(instance) || _pendingInstances.Contains(instance)) return;
+            if (!prefab || !inst) return;
+            if (_releasedInstances.Contains(inst) || _pendingInstances.Contains(inst)) return;
 
-            if (!TryScheduleIfDirty(instance, prefab))
+            if (!TryScheduleIfDirty(inst, prefab))
             {
-                _releasedInstances.Add(instance);
-                _activeInstances.Remove(instance);
-                _instanceToPrefab.Remove(instance);
-                RemoveCachedComponents(instance);
-                GetPool(prefab).Release(instance);
+                _releasedInstances.Add(inst);
+                _activeInstances.Remove(inst);
+                _instanceToPrefab.Remove(inst);
+                GetPool(prefab).Release(inst);
             }
             else
             {
-                _pendingInstances.Add(instance);
-                _activeInstances.Remove(instance);
-                _instanceToPrefab.Remove(instance);
-                RemoveCachedComponents(instance);
-                PoolReleaseScheduler.Enqueue(prefab, instance);
+                _pendingInstances.Add(inst);
+                _activeInstances.Remove(inst);
+                _instanceToPrefab.Remove(inst);
+                PoolReleaseScheduler.Enqueue(prefab, inst);
             }
         }
 
-        // ============ NEW: type-safe Release<T> =============
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static void Release<T>(PoolPrefabConfig config, T inst) where T : Component
+        public static void Release<T>(PoolPrefabConfig cfg, T inst) where T : Component
         {
             if (!inst) return;
-            RemoveCachedComponents(inst.gameObject);
-            Release(config, inst.gameObject);
+            Release(cfg, inst.gameObject);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void Release<T>(GameObject prefab, T inst) where T : Component
         {
             if (!inst) return;
-            RemoveCachedComponents(inst.gameObject);
             Release(prefab, inst.gameObject);
         }
-        // =====================================================
 
-        static bool TryScheduleIfDirty(GameObject instance, GameObject prefab)
+        // =========================================================
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ReleaseMoveFar(GameObject prefab, GameObject inst)
         {
-            var handlers = instance.GetComponentsInChildren<IPoolPreRelease>(true);
+            if (!prefab || !inst) return;
+            if (_releasedInstances.Contains(inst) || _pendingInstances.Contains(inst)) return;
+
+            inst.transform.position = s_MoveFarPosition;
+
+            if (!TryScheduleIfDirty(inst, prefab))
+            {
+                _releasedInstances.Add(inst);
+                _activeInstances.Remove(inst);
+                _instanceToPrefab.Remove(inst);
+                GetPool(prefab).skipSetInactive = true;
+                GetPool(prefab).Release(inst);
+            }
+            else
+            {
+                _pendingInstances.Add(inst);
+                _activeInstances.Remove(inst);
+                _instanceToPrefab.Remove(inst);
+                PoolReleaseScheduler.Enqueue(prefab, inst);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ReleaseMoveFar<T>(GameObject prefab, T inst) where T : Component
+        {
+            if (!inst) return;
+            ReleaseMoveFar(prefab, inst.gameObject);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ReleaseMoveFar(PoolPrefabConfig cfg, GameObject inst)
+        {
+            if (cfg == null || !inst) return;
+            if (_releasedInstances.Contains(inst) || _pendingInstances.Contains(inst)) return;
+
+            inst.transform.position = s_MoveFarPosition;
+
+            if (!TryScheduleIfDirty(inst, cfg.prefab))
+            {
+                _releasedInstances.Add(inst);
+                _activeInstances.Remove(inst);
+                _instanceToPrefab.Remove(inst);
+                GetPool(cfg).skipSetInactive = true;
+                GetPool(cfg).Release(inst);
+            }
+            else
+            {
+                _pendingInstances.Add(inst);
+                _activeInstances.Remove(inst);
+                _instanceToPrefab.Remove(inst);
+                PoolReleaseScheduler.Enqueue(cfg.prefab, inst);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void ReleaseMoveFar<T>(PoolPrefabConfig cfg, T inst) where T : Component
+        {
+            if (!inst) return;
+            ReleaseMoveFar(cfg, inst.gameObject);
+        }
+
+        // =========================================================
+        static bool TryScheduleIfDirty(GameObject inst, GameObject prefab)
+        {
+            var handlers = inst.GetComponentsInChildren<IPoolPreRelease>(true);
             for (int i = 0; i < handlers.Length; i++)
             {
                 var h = handlers[i];
-                if (h != null && h.IsDirty)
-                {
-                    return true; // dirty → để scheduler xử lý
-                }
+                if (h != null && h.IsDirty) return true;
             }
-
             return false;
         }
 
-        // ======================= GET POOL ======================
-        public static PoolPrefab GetPool(PoolPrefabConfig config)
+        public static PoolPrefab GetPool(PoolPrefabConfig cfg)
         {
-            if (!_poolLookup.ContainsKey(config.prefab))
-                _poolLookup.Add(config.prefab, new PoolPrefab(config));
-            return _poolLookup[config.prefab];
+            if (!_poolLookup.TryGetValue(cfg.prefab, out var pool))
+            {
+                pool = new PoolPrefab(cfg);
+                _poolLookup.Add(cfg.prefab, pool);
+            }
+            return pool;
         }
 
         public static PoolPrefab GetPool(GameObject prefab)
         {
-            if (!_poolLookup.ContainsKey(prefab))
-                _poolLookup.Add(prefab, new PoolPrefab(prefab));
-            return _poolLookup[prefab];
+            if (!_poolLookup.TryGetValue(prefab, out var pool))
+            {
+                pool = new PoolPrefab(prefab);
+                _poolLookup.Add(prefab, pool);
+            }
+            return pool;
         }
 
-        // =================== CHECK / WAIT / FORCE ==============
-        public static bool IsReleased(GameObject instance) => instance && _releasedInstances.Contains(instance);
-        public static bool IsPending(GameObject instance) => instance && _pendingInstances.Contains(instance);
+        // =========================================================
+        public static bool IsReleased(GameObject inst) => inst && _releasedInstances.Contains(inst);
+        public static bool IsPending(GameObject inst) => inst && _pendingInstances.Contains(inst);
         public static int ActiveCount => _activeInstances.Count;
 
         public static UniTask FlushAsync(int maxPerFrame = 256) => PoolReleaseScheduler.FlushAsync(maxPerFrame);
@@ -258,10 +284,7 @@ namespace GOCD.Framework
             float end = Time.realtimeSinceStartup + timeoutSeconds;
             while ((ActiveCount > 0 || PoolReleaseScheduler.PendingCount > 0) &&
                    Time.realtimeSinceStartup < end)
-            {
-                await Cysharp.Threading.Tasks.UniTask.Yield(Cysharp.Threading.Tasks.PlayerLoopTiming
-                    .LastPostLateUpdate);
-            }
+                await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
         }
 
         public static async UniTask FlushAndWaitIdleAsync(float timeoutSeconds = 3f, int flushBatch = 256)
@@ -270,9 +293,6 @@ namespace GOCD.Framework
             await WaitForIdleAsync(timeoutSeconds);
         }
 
-        /// <summary>
-        /// FORCE: ép toàn bộ active trả về pool (kể cả chưa gọi Release), rồi flush & wait.
-        /// </summary>
         public static async UniTask ForceReleaseAllAsync(float timeoutSeconds = 3f, int flushBatch = 256)
         {
             var tmp = new List<GameObject>(_activeInstances);
@@ -282,12 +302,9 @@ namespace GOCD.Framework
                 if (!inst) continue;
 
                 if (_instanceToPrefab.TryGetValue(inst, out var prefab) && prefab)
-                {
                     Release(prefab, inst);
-                }
                 else
                 {
-                    RemoveCachedComponents(inst);
                     Object.Destroy(inst);
                     _activeInstances.Remove(inst);
                     _releasedInstances.Add(inst);
@@ -298,18 +315,53 @@ namespace GOCD.Framework
             await FlushAndWaitIdleAsync(timeoutSeconds, flushBatch);
         }
 
-        // Scheduler gọi khi cleanup xong
         internal static void MarkAsReleased(GameObject prefab, GameObject inst)
         {
             if (!inst) return;
-
             _pendingInstances.Remove(inst);
             _releasedInstances.Add(inst);
-            if (_instanceToPrefab.ContainsKey(inst))
-                _instanceToPrefab.Remove(inst);
-
-            RemoveCachedComponents(inst);
+            _instanceToPrefab.Remove(inst);
             GetPool(prefab).Release(inst);
         }
+
+        // =========================================================
+        public static void DestroyPools(IList<PoolPrefabConfig> configs)
+        {
+            if (configs == null || configs.Count == 0) return;
+
+            int destroyed = 0;
+            foreach (var cfg in configs)
+            {
+                if (cfg == null || cfg.prefab == null) continue;
+
+                if (_poolLookup.TryGetValue(cfg.prefab, out var pool))
+                {
+                    pool.DestroyAll();
+                    _poolLookup.Remove(cfg.prefab);
+                    destroyed++;
+                }
+            }
+
+            // 🧹 Clean orphan references
+            _activeInstances.RemoveWhere(x => x == null);
+            _releasedInstances.RemoveWhere(x => x == null);
+            _pendingInstances.RemoveWhere(x => x == null);
+
+            List<GameObject> removeKeys = new();
+            foreach (var kv in _instanceToPrefab)
+                if (kv.Key == null || kv.Value == null) removeKeys.Add(kv.Key);
+            for (int i = 0; i < removeKeys.Count; i++)
+                _instanceToPrefab.Remove(removeKeys[i]);
+
+            PoolPrefab.TryDestroyRootIfEmpty();
+
+            GOCDDebug.Log($"🧹 DestroyPools(): {destroyed}/{configs.Count} pool(s) destroyed.", Color.green);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool TryGetPoolFast(GameObject prefab, out PoolPrefab pool)
+            => _poolLookup.TryGetValue(prefab, out pool);
+
+        public static Vector3 MoveFarPos => s_MoveFarPosition;
     }
 }

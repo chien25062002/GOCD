@@ -9,6 +9,12 @@ namespace GOCD.Framework
     {
         [Title("Config")] [SerializeField] PoolPrefabConfig _config;
 
+        public PoolPrefabConfig Config
+        {
+            get => _config;
+            set => _config = value;
+        }
+        
         bool _subscribed;
 
         // ===== Cache sẵn IPoolPreRelease để không gọi GetComponents mỗi lần =====
