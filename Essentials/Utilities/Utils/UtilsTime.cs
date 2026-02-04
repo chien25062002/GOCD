@@ -8,7 +8,7 @@ namespace CodeSketch.Utitlities.Utils
     /// expiration, scheduling.
     /// Uses UTC Unix Timestamp (milliseconds).
     /// </summary>
-    public static class CSkUtilsTime
+    public static class UtilsTime
     {
         // =====================================================
         // NOW

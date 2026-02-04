@@ -2,12 +2,43 @@ using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-namespace Game
+namespace CodeSketch.Utilities.UI
 {
-    public class UITouchDetector : MonoBehaviour, IPointerClickHandler, IPointerDownHandler, IPointerUpHandler, IDragHandler, IBeginDragHandler, IEndDragHandler, IPointerEnterHandler, IPointerExitHandler
+    /// <summary>
+    /// UITouchDetector
+    /// 
+    /// Purpose:
+    /// - Unified pointer/touch event detector
+    /// - Supports mouse + single-touch
+    /// - Prevents multi-touch conflict
+    ///
+    /// Typical usage:
+    /// - Custom UI buttons
+    /// - Virtual joystick
+    /// - Drag UI element
+    /// </summary>
+    public sealed class UITouchDetector :
+        MonoBehaviour,
+        IPointerClickHandler,
+        IPointerDownHandler,
+        IPointerUpHandler,
+        IPointerEnterHandler,
+        IPointerExitHandler,
+        IBeginDragHandler,
+        IDragHandler,
+        IEndDragHandler
     {
-        static int s_touchId;
-        
+        /// <summary>
+        /// Global active pointer id (shared across all detectors).
+        /// </summary>
+        static int s_activePointerId = int.MinValue;
+
+        bool _isDragging;
+
+        // =====================================================
+        // EVENTS
+        // =====================================================
+
         public event Action<PointerEventData> eventPointerClick;
         public event Action<PointerEventData> eventPointerDown;
         public event Action<PointerEventData> eventPointerUp;
@@ -19,32 +50,37 @@ namespace Game
         public event Action<PointerEventData> eventDrag;
         public event Action<PointerEventData> eventEndDrag;
 
-        bool _isDragging = false;
+        // =====================================================
+        // POINTER
+        // =====================================================
 
-        void IBeginDragHandler.OnBeginDrag(PointerEventData eventData)
-        {
-            _isDragging = true;
-
-            eventBeginDrag?.Invoke(eventData);
-        }
-
-        void IDragHandler.OnDrag(PointerEventData eventData)
+        public void OnPointerDown(PointerEventData eventData)
         {
 #if !UNITY_EDITOR
-            if (s_touchId != s_touchId) return;
+            // Already captured by another pointer
+            if (s_activePointerId != int.MinValue)
+                return;
+
+            s_activePointerId = eventData.pointerId;
 #endif
-            
-            eventDrag?.Invoke(eventData);
-        }
-
-        void IEndDragHandler.OnEndDrag(PointerEventData eventData)
-        {
             _isDragging = false;
-
-            eventEndDrag?.Invoke(eventData);
+            eventPointerDown?.Invoke(eventData);
         }
 
-        void IPointerClickHandler.OnPointerClick(PointerEventData eventData)
+        public void OnPointerUp(PointerEventData eventData)
+        {
+#if !UNITY_EDITOR
+            // Ignore if not owner
+            if (eventData.pointerId != s_activePointerId)
+                return;
+
+            s_activePointerId = int.MinValue;
+#endif
+            _isDragging = false;
+            eventPointerUp?.Invoke(eventData);
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
         {
             if (_isDragging)
                 return;
@@ -52,33 +88,47 @@ namespace Game
             eventPointerClick?.Invoke(eventData);
         }
 
-        void IPointerDownHandler.OnPointerDown(PointerEventData eventData)
-        {
-#if !UNITY_EDITOR
-            if (s_touchId != s_touchId) return;
-            if (s_touchId < 0)
-                s_touchId = eventData.pointerId;
-#endif
-            eventPointerDown?.Invoke(eventData);
-        }
-
-        void IPointerUpHandler.OnPointerUp(PointerEventData eventData)
-        {
-#if !UNITY_EDITOR
-            if (s_touchId != s_touchId) return;
-            s_touchId = int.MinValue;
-#endif
-            eventPointerUp?.Invoke(eventData);
-        }
-
-        void IPointerEnterHandler.OnPointerEnter(PointerEventData eventData)
+        public void OnPointerEnter(PointerEventData eventData)
         {
             eventPointerEnter?.Invoke(eventData);
         }
 
-        void IPointerExitHandler.OnPointerExit(PointerEventData eventData)
+        public void OnPointerExit(PointerEventData eventData)
         {
             eventPointerExit?.Invoke(eventData);
+        }
+
+        // =====================================================
+        // DRAG
+        // =====================================================
+
+        public void OnBeginDrag(PointerEventData eventData)
+        {
+#if !UNITY_EDITOR
+            if (eventData.pointerId != s_activePointerId)
+                return;
+#endif
+            _isDragging = true;
+            eventBeginDrag?.Invoke(eventData);
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+#if !UNITY_EDITOR
+            if (eventData.pointerId != s_activePointerId)
+                return;
+#endif
+            eventDrag?.Invoke(eventData);
+        }
+
+        public void OnEndDrag(PointerEventData eventData)
+        {
+#if !UNITY_EDITOR
+            if (eventData.pointerId != s_activePointerId)
+                return;
+#endif
+            _isDragging = false;
+            eventEndDrag?.Invoke(eventData);
         }
     }
 }

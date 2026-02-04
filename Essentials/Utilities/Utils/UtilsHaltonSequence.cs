@@ -6,7 +6,7 @@ namespace CodeSketch.Utitlities.Utils
     /// Global incremental Halton sequence sampler (base 2,3,5).
     /// Each Increment() advances the global sequence.
     /// </summary>
-    public static class CSkUtilsHaltonSequence
+    public static class UtilsHaltonSequence
     {
         /// <summary>
         /// Current Halton position in [0..1] range per axis.

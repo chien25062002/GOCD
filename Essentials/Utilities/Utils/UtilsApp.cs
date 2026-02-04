@@ -6,7 +6,7 @@ using Object = UnityEngine.Object;
 
 namespace CodeSketch.Utitlities.Utils
 {
-    public static class CSkUtilsApp
+    public static class UtilsApp
     {
 #if UNITY_EDITOR
         /// <summary>

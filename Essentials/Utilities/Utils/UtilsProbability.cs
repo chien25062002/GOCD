@@ -2,7 +2,7 @@ using System;
 
 namespace CodeSketch.Utitlities.Utils
 {
-    public static class CSkUtilsProbability
+    public static class UtilsProbability
     {
         static readonly Random _rnd = new Random();
 

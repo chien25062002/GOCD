@@ -3,7 +3,7 @@ using PrimeTween;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.UI
 {
     /// <summary>
     ///     Tiện ích điều khiển Slider:
@@ -15,9 +15,9 @@ namespace GOCD.Framework
     ///     * Notify: gọi onValueChanged như player kéo.
     /// </summary>
     [RequireComponent(typeof(Slider))]
-    public class UI_Slider_AutoDriver : MonoBehaviour
+    public class USliderSensor : MonoBehaviour
     {
-        [SerializeField] [HideInInspector] Slider _slider;
+        [SerializeField, HideInInspector] Slider _slider;
 
         public enum UpdateMode
         {
@@ -26,6 +26,7 @@ namespace GOCD.Framework
         }
 
         Tween _tween;
+        
         public bool IsAuto { get; private set; }
 
         public float Value => Slider.value;
@@ -35,7 +36,7 @@ namespace GOCD.Framework
             get
             {
                 if (_slider == null)
-                    _slider = GetComponent<Slider>();
+                    _slider = GetComponentInChildren<Slider>();
                 return _slider;
             }
         }

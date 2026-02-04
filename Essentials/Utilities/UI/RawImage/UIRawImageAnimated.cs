@@ -7,7 +7,7 @@ using CodeSketch.Mono;
 
 namespace CodeSketch.Utitlities.UI
 {
-    public class CSK_UI_RawImage_Animated : MonoBase
+    public class UIRawImageAnimated : MonoBase
     {
         [Header("Config")]
         [SerializeField] Texture[] _frames;

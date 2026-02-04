@@ -1,35 +1,137 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-namespace CFramework
+namespace CodeSketch.Utilities.CanvasWorld
 {
+    /// <summary>
+    /// WorldCanvasManager
+    /// 
+    /// Purpose:
+    /// - Ensure ONE global WorldSpace Canvas
+    /// - Survives scene loads
+    /// - Re-validates on every scene load
+    /// - Auto-resize by screen orientation
+    /// </summary>
     public static class WorldCanvasManager
     {
-        public static Transform Root;
+        public static Transform Root { get; set; }
 
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void Init()
+        static Canvas _canvas;
+        static RectTransform _rect;
+        static ScreenOrientation _lastOrientation;
+
+        // =====================================================
+        // INIT (ONCE PER APP)
+        // =====================================================
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        static void Bootstrap()
         {
-            if (Root != null) return;
+            Root = null;
+            _canvas = null;
+            _rect = null;
+            _lastOrientation = Screen.orientation;
 
-            // 💥 Không tìm thấy WorldSpace Canvas → Tạo mới:
-            var go = new GameObject("CanvasWorld", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-            var canvasComp = go.GetComponent<Canvas>();
-            canvasComp.renderMode = RenderMode.WorldSpace;
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+            SceneManager.sceneLoaded += OnSceneLoaded;
+        }
 
+        // =====================================================
+        // SCENE CALLBACK
+        // =====================================================
+
+        static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+        {
+            ForceRefresh();
+        }
+
+        public static void ForceRefresh()
+        {
+            EnsureCanvas();
+            UpdateCanvasSizeIfNeeded();
+        }
+
+        // =====================================================
+        // CORE
+        // =====================================================
+
+        static void EnsureCanvas()
+        {
+            if (Root != null)
+                return;
+
+            var go = new GameObject(
+                "CanvasWorld",
+                typeof(Canvas),
+                typeof(CanvasScaler),
+                typeof(GraphicRaycaster)
+            );
+
+            Object.DontDestroyOnLoad(go);
+
+            _canvas = go.GetComponent<Canvas>();
+            _canvas.renderMode = RenderMode.WorldSpace;
+
+            _rect = go.GetComponent<RectTransform>();
             go.transform.localScale = Vector3.one * 0.01f;
 
-            if (Screen.orientation == ScreenOrientation.LandscapeLeft || Screen.orientation == ScreenOrientation.LandscapeRight)
-            {
-                ((RectTransform)go.transform).sizeDelta = new Vector2(1280, 720);
-            }
-            else if (Screen.orientation == ScreenOrientation.Portrait || Screen.orientation == ScreenOrientation.PortraitUpsideDown)
-            {
-                ((RectTransform)go.transform).sizeDelta = new Vector2(720, 1280);
-            }
-
-            Object.DontDestroyOnLoad(go); // Đảm bảo CanvasWorld sống qua scene
             Root = go.transform;
+
+            UpdateCanvasSize();
+        }
+
+        // =====================================================
+        // SIZE / ORIENTATION
+        // =====================================================
+
+        static void UpdateCanvasSizeIfNeeded()
+        {
+            if (_lastOrientation != Screen.orientation)
+            {
+                _lastOrientation = Screen.orientation;
+                UpdateCanvasSize();
+            }
+        }
+
+        static void UpdateCanvasSize()
+        {
+            if (_rect == null)
+                return;
+
+            switch (Screen.orientation)
+            {
+                case ScreenOrientation.LandscapeLeft:
+                case ScreenOrientation.LandscapeRight:
+                    _rect.sizeDelta = new Vector2(1280, 720);
+                    break;
+
+                case ScreenOrientation.Portrait:
+                case ScreenOrientation.PortraitUpsideDown:
+                    _rect.sizeDelta = new Vector2(720, 1280);
+                    break;
+
+                default:
+                    // fallback theo aspect
+                    float aspect = (float)Screen.width / Screen.height;
+                    _rect.sizeDelta = aspect > 1f
+                        ? new Vector2(1280, 720)
+                        : new Vector2(720, 1280);
+                    break;
+            }
+        }
+
+        // =====================================================
+        // PUBLIC API
+        // =====================================================
+
+        /// <summary>
+        /// Force refresh size manually (optional).
+        /// Call when changing resolution or camera.
+        /// </summary>
+        public static void Refresh()
+        {
+            UpdateCanvasSize();
         }
     }
 }

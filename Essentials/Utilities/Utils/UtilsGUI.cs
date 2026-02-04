@@ -4,7 +4,7 @@ using UnityEngine.SceneManagement;
 
 namespace CodeSketch.Utilities.Utils
 {
-    public static class CSKUtilsGUI
+    public static class UtilsGUI
     {
         static RectTransform _canvas;
         static Camera _camera;

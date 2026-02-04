@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace CodeSketch.Utitlities.Motion
 {
-    public static class CodeSketchSpringMotion
+    public static class SpringMotion
     {
         // Reference video: 
         // https://www.youtube.com/watch?v=bFOAipGJGA0

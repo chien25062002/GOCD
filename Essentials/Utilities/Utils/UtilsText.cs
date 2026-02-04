@@ -9,7 +9,7 @@ namespace CodeSketch.Utilities.Utils
     /// Text utilities optimized for mobile UI (TMP).
     /// Color tags, keyword highlight, time formatting.
     /// </summary>
-    public static class CSkUtilsText
+    public static class UtilsText
     {
         // =====================================================
         // COLORIZE BY INDEX (SAFE)

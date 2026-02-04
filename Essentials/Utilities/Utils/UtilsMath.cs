@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace CodeSketch.Utitlities.Utils
 {
-    public static class CSkUtilsMath
+    public static class UtilsMath
     {
         /// <summary>
         /// Tuyến tính nội suy giữa a và b theo t (giá trị giữa 0–1).

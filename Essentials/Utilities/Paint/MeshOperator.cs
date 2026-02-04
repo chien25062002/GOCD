@@ -1,99 +1,167 @@
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
+using System;
 using UnityEngine;
 
-namespace CFramework.Paint
+namespace CodeSketch.Utilities.Paint
 {
     /// <summary>
-    	/// A class that manipulates Mesh.
-    	/// </summary>
-    public class MeshOperator
+    /// MeshOperator
+    /// 
+    /// Purpose:
+    /// - Query mesh geometry for PAINT / DECAL / HIT effects
+    /// - Convert local-space point to UV
+    /// - Find nearest surface point on mesh
+    ///
+    /// NOT for physics or collision replacement.
+    /// </summary>
+    public sealed class MeshOperator
     {
-	    #region MeshData
+        // =====================================================
+        // CACHED MESH DATA (NO GC)
+        // =====================================================
 
-        Mesh mesh;
-        int[] meshTriangles;
-        Vector3[] meshVertices;
-	    Vector2[] meshUV;
+        readonly Mesh _mesh;
+        readonly int[] _triangles;
+        readonly Vector3[] _vertices;
+        readonly Vector2[] _uvs;
 
-	    #endregion MeshData
-	    
-	    #region PublicMethod
+        // =====================================================
+        // CONSTRUCTOR
+        // =====================================================
 
-		public MeshOperator(Mesh mesh)
-		{
-			if(mesh == null)
-				throw new System.ArgumentNullException("mesh");
-			this.mesh = mesh;
-			meshTriangles = this.mesh.triangles;
-			meshVertices = this.mesh.vertices;
-			meshUV = this.mesh.uv;
-		}
+        public MeshOperator(Mesh mesh)
+        {
+            if (mesh == null)
+                throw new ArgumentNullException(nameof(mesh));
 
-		/// <summary>
-		/// Convert local-space point to texture coordinates.
-		/// </summary>
-		/// <param name="localPoint">Local-Space Point</param>
-		/// <param name="matrixMVP">World-View-Projection Transformation matrix.</param>
-		/// <param name="uv">UV coordinates after conversion.</param>
-		/// <returns>Whether the conversion was successful.</returns>
-		public bool LocalPointToUV(Vector3 localPoint, Matrix4x4 matrixMVP, out Vector2 uv)
-		{
-			int index0;
-			int index1;
-			int index2;
-			Vector3 t1;
-			Vector3 t2;
-			Vector3 t3;
-			Vector3 p = localPoint;
+            _mesh = mesh;
+            _triangles = mesh.triangles;
+            _vertices = mesh.vertices;
+            _uvs = mesh.uv;
+        }
 
-			for(var i = 0; i < meshTriangles.Length; i += 3)
-			{
-				index0 = i + 0;
-				index1 = i + 1;
-				index2 = i + 2;
+        // =====================================================
+        // LOCAL POINT → UV
+        // =====================================================
 
-				t1 = meshVertices[meshTriangles[index0]];
-				t2 = meshVertices[meshTriangles[index1]];
-				t3 = meshVertices[meshTriangles[index2]];
+        /// <summary>
+        /// Convert a LOCAL-space point on mesh surface to UV coordinate.
+        /// 
+        /// Typical usage:
+        /// - Raycast hit
+        /// - hit.point transformed to local-space
+        /// - Convert to UV to paint texture / decal
+        ///
+        /// Example:
+        /// MeshOperator op = new MeshOperator(mesh);
+        /// Vector2 uv;
+        /// if (op.LocalPointToUV(localHitPoint, out uv))
+        /// {
+        ///     // use uv to paint
+        /// }
+        /// </summary>
+        public bool LocalPointToUV(Vector3 localPoint, out Vector2 uv)
+        {
+            uv = default;
 
-				if(!Math.ExistPointInPlane(p, t1, t2, t3))
-					continue;
-				if(!Math.ExistPointOnTriangleEdge(p, t1, t2, t3) && !Math.ExistPointInTriangle(p, t1, t2, t3))
-					continue;
+            // Loop through triangles
+            for (int i = 0; i < _triangles.Length; i += 3)
+            {
+                int i0 = _triangles[i];
+                int i1 = _triangles[i + 1];
+                int i2 = _triangles[i + 2];
 
-				var uv1 = meshUV[meshTriangles[index0]];
-				var uv2 = meshUV[meshTriangles[index1]];
-				var uv3 = meshUV[meshTriangles[index2]];
-				uv = Math.TextureCoordinateCalculation(p, t1, uv1, t2, uv2, t3, uv3, matrixMVP);
+                Vector3 t1 = _vertices[i0];
+                Vector3 t2 = _vertices[i1];
+                Vector3 t3 = _vertices[i2];
 
-				return true;
-			}
-			uv = default(Vector3);
-			return false;
-		}
+                // Check plane
+                if (!MeshPaintMath.IsPointOnPlane(localPoint, t1, t2, t3))
+                    continue;
 
-		/// <summary>
-		/// Returns the point on the surface of Mesh closest to the point on the specified local-space.
-		/// </summary>
-		/// <param name="localPoint">The point of local-space.</param>
-		/// <returns>Mesh The point of local-space on the surface.</returns>
-		public Vector3 NearestLocalSurfacePoint(Vector3 localPoint)
-		{
-			var p = localPoint;
-			var tris = Math.GetNearestVerticesTriangle(p, meshVertices, meshTriangles);
-			var pds = new List<Vector3>();
-			for(int i = 0; i < tris.Length; i += 3)
-			{
-				var i0 = i;
-				var i1 = i + 1;
-				var i2 = i + 2;
-				pds.Add(Math.TriangleSpaceProjection(p, tris[i0], tris[i1], tris[i2]));
-			}
-			return pds.OrderBy(t => Vector3.Distance(p, t)).First();
-		}
+                // Check inside triangle or on edge
+                if (!MeshPaintMath.IsPointInTriangle(localPoint, t1, t2, t3) &&
+                    !MeshPaintMath.IsPointOnTriangleEdge(localPoint, t1, t2, t3))
+                    continue;
 
-		#endregion PublicMethod
+                // Interpolate UV
+                uv = MeshPaintMath.CalculateUV(
+                    localPoint,
+                    t1, _uvs[i0],
+                    t2, _uvs[i1],
+                    t3, _uvs[i2]
+                );
+
+                return true;
+            }
+
+            return false;
+        }
+
+        // =====================================================
+        // NEAREST SURFACE POINT
+        // =====================================================
+
+        /// <summary>
+        /// Find the nearest LOCAL-space point on mesh surface.
+        /// 
+        /// Used for:
+        /// - Brush snapping
+        /// - Hit stabilization
+        /// - Clamp paint position
+        ///
+        /// NOTE:
+        /// - Heuristic method (fast)
+        /// - Suitable for paint / decal
+        /// </summary>
+        public Vector3 NearestLocalSurfacePoint(Vector3 localPoint)
+        {
+            float minDist = float.MaxValue;
+            Vector3 best = localPoint;
+
+            for (int i = 0; i < _triangles.Length; i += 3)
+            {
+                Vector3 t1 = _vertices[_triangles[i]];
+                Vector3 t2 = _vertices[_triangles[i + 1]];
+                Vector3 t3 = _vertices[_triangles[i + 2]];
+
+                // Soft clamp point into triangle
+                Vector3 projected =
+                    MeshPaintMath.ClampPointToTriangle(localPoint, t1, t2, t3);
+
+                float d = (localPoint - projected).sqrMagnitude;
+                if (d < minDist)
+                {
+                    minDist = d;
+                    best = projected;
+                }
+            }
+
+            return best;
+        }
+        
+        // Usage
+        //     RaycastHit hit;
+        //     if (Physics.Raycast(ray, out hit))
+        // {
+        //     var mf = hit.collider.GetComponent<MeshFilter>();
+        //     if (!mf) return;
+        //
+        //     Mesh mesh = mf.sharedMesh;
+        //
+        //     // Convert hit point to LOCAL space
+        //     Vector3 localPoint = mf.transform.InverseTransformPoint(hit.point);
+        //
+        //     MeshOperator op = new MeshOperator(mesh);
+        //
+        //     if (op.LocalPointToUV(localPoint, out Vector2 uv))
+        //     {
+        //         // 👉 uv dùng để:
+        //         // - Paint texture
+        //         // - Decal
+        //         // - Bullet hole
+        //         Debug.Log("UV = " + uv);
+        //     }
+        // }
+
     }
 }

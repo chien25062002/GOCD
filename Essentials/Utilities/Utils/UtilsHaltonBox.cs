@@ -6,7 +6,7 @@ namespace CodeSketch.Utitlities.Utils
     /// Global Halton sequence sampler for Box volume.
     /// Static index → shared sequence across systems.
     /// </summary>
-    public static class CSkUtilsHaltonBox
+    public static class UtilsHaltonBox
     {
         static int _index;
 

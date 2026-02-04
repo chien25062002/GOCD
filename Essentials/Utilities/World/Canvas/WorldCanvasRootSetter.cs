@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace CFramework
+namespace CodeSketch.Utilities.CanvasWorld
 {
     public class WorldCanvasRootSetter : MonoBehaviour
     {
