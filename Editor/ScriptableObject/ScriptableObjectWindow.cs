@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEditor.ProjectWindowCallback;
 using UnityEngine;
 
-namespace GOCD.Framework.Editor
+namespace CodeSketch.Editor.Scriptable
 {
     internal class EndNameEdit : EndNameEditAction
     {
@@ -34,7 +34,7 @@ namespace GOCD.Framework.Editor
         
         public Type[] Types
         {
-            get { return _types; }
+            get => _types;
             set
             {
                 _types = value;
@@ -66,11 +66,11 @@ namespace GOCD.Framework.Editor
                 GUILayout.BeginHorizontal();
                 if (GUILayout.Button(_types[i].Name))
                 {
-                    var asset = ScriptableObject.CreateInstance(_types[i]);
+                    var asset = CreateInstance(_types[i]);
                     ProjectWindowUtil.StartNameEditingIfProjectWindowExists(
                         asset.GetInstanceID(),
-                        ScriptableObject.CreateInstance<EndNameEdit>(),
-                        string.Format("{0}.asset", _names[i]),
+                        CreateInstance<EndNameEdit>(),
+                        $"{_names[i]}.asset",
                         AssetPreview.GetMiniThumbnail(asset),
                         null);
 

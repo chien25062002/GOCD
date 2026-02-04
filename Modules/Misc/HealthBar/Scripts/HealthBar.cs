@@ -1,10 +1,12 @@
 using System;
+using CodeSketch.Core.Extensions;
+using CodeSketch.Data;
 using DG.Tweening;
 using Sirenix.OdinInspector;
 using TMPro;
 using UnityEngine;
 
-namespace GOCD.Framework.Module.HealthBar
+namespace CodeSketch.Modules.HealthSystem
 {
     public class HealthBar : HealthBarBase
     {
@@ -45,8 +47,8 @@ namespace GOCD.Framework.Module.HealthBar
         
         [SerializeField] HealthBarConfig _config;
 
-        GOCDValue<float> _maxHealth = new GOCDValue<float>(0);
-        GOCDValue<float> _health = new GOCDValue<float>(0);
+        DataValue<float> _maxHealth = new DataValue<float>(0);
+        DataValue<float> _health = new DataValue<float>(0);
         
         Tween _tweenChangeRedHp;
         Tween _tweenChangeYellowHp;
@@ -54,16 +56,18 @@ namespace GOCD.Framework.Module.HealthBar
 
         public event Action EventDie;
         
-        public GOCDValue<float> MaxHealth => _maxHealth;
-        public GOCDValue<float> Health => _health;
+        public DataValue<float> MaxHealth => _maxHealth;
+        public DataValue<float> Health => _health;
 
         void Awake()
         {
             InitTween();
         }
 
-        void Start()
+        protected override void Start()
         {
+            base.Start();
+            
             if (!_config.manuallyInitialize)
                 Init(_config.defaultHp, _config.defaultHp);
         }
@@ -88,12 +92,12 @@ namespace GOCD.Framework.Module.HealthBar
 
         public override void Init(float maxHp, float hp)
         {
-            _maxHealth.value = maxHp;
-            _health.value = hp;
+            _maxHealth.Value = maxHp;
+            _health.Value = hp;
 
             if (_textHP != null)
             {
-                _textHP.text = $"{(int)_health.value}";
+                _textHP.text = $"{(int)_health.Value}";
             }
             GameObjectCached.SetActive(true);
 
@@ -110,17 +114,17 @@ namespace GOCD.Framework.Module.HealthBar
 
         public override void TakeDamage(float damage, bool immediately = false)
         {
-            if (Health.value <= 0) return;
+            if (Health.Value <= 0) return;
 
-            Health.value -= damage;
+            Health.Value -= damage;
 
-            if (Health.value <= 0)
+            if (Health.Value <= 0)
             {
-                Health.value = 0;
+                Health.Value = 0;
                 EventDie?.Invoke();
             }
             
-            float ratio = _health.value / _maxHealth.value;
+            float ratio = _health.Value / _maxHealth.Value;
             
             Vector2 toSizeDelta = new Vector2(_config.normalSizeDelta.x * ratio, _config.normalSizeDelta.y);
             _tweenChangeRedHp?.Kill();
@@ -135,12 +139,12 @@ namespace GOCD.Framework.Module.HealthBar
             float time = _root.localScale.x / _config.scaleUp;
             _tweenScale.Goto(Mathf.Lerp(0, 0.5f, time) * _config.scaleDuration, true);
             
-            if (_health.value == 0)
+            if (_health.Value == 0)
             {
                 gameObject.SetActive(false);
             }
 
-            if (_textHP != null) _textHP.text = $"{(int)_health.value}";
+            if (_textHP != null) _textHP.text = $"{(int)_health.Value}";
 
             if (immediately)
             {

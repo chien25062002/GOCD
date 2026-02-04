@@ -1,11 +1,11 @@
 using DG.Tweening;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public class AnimationSequenceStepRectTransformAnchorPos : AnimationSequenceStepRectTransform
     {
-        public override string displayName { get { return $"{(_isSelf ? "RectTransform (This)" : _owner)}: DOAnchorPos"; } }
+        public override string displayName => $"{(_isSelf ? "RectTransform (This)" : _owner)}: DOAnchorPos";
 
         protected override Tween GetTween(AnimationSequence animationSequence)
         {

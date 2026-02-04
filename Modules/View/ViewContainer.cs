@@ -1,17 +1,21 @@
 using System.Collections.Generic;
+using CodeSketch.Core.Extensions;
 using Cysharp.Threading.Tasks;
-using GOCD.Framework.Diagnostics;
 using UnityEngine;
-using UnityEngine.AddressableAssets;
 using UnityEngine.SceneManagement;
 
-namespace GOCD.Framework
+using CodeSketch.Mono;
+using CodeSketch.Core.Extensions.CSharp;
+using CodeSketch.Diagnostics;
+using UnityEngine.AddressableAssets;
+
+namespace CodeSketch.UIView
 {
     public class ViewContainer : MonoSingleton<ViewContainer>
     {
-        protected override bool _dontDestroyOnLoad => false;
+        protected override bool PersistAcrossScenes => true;
 
-        List<View> _views = new List<View>();
+        readonly List<View> _views = new List<View>();
 
         bool _isTransiting = false;
 
@@ -65,7 +69,7 @@ namespace GOCD.Framework
             // Can't push another view when it is transiting
             if (_isTransiting)
             {
-                GOCDDebug.Log<ViewContainer>($"Another View is transiting, can't push any new view {viewAsset}");
+                CodeSketchDebug.Log<ViewContainer>($"Another View is transiting, can't push any new view {viewAsset}");
                 return null;
             }
 

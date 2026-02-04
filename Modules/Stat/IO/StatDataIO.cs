@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 
-namespace GOCD.Framework.Module.Stat
+namespace CodeSketch.Modules.StatSystem
 {
     public static class StatDataIO
     {

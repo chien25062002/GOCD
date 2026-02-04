@@ -2,7 +2,7 @@ using DG.Tweening;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.UIView
 {
     public class ViewTransitionCanvasGroup : ViewTransition
     {
@@ -18,7 +18,7 @@ namespace GOCD.Framework
         [HideIf("@_keepStart"), Range(0f, 1f)]
         [SerializeField] float _alphaStart;
 
-        public override string displayName { get { return "Canvas Group"; } }
+        public override string DisplayName => "Canvas Group";
 
         public override Tween GetTween(ViewTransitionEntity entity, float duration)
         {

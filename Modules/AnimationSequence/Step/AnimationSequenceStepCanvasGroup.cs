@@ -2,19 +2,19 @@ using DG.Tweening;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public class AnimationSequenceStepCanvasGroup : AnimationSequenceStepAction<CanvasGroup>
     {
         [SerializeField]
         [Range(0f, 1f)]
-        float _alpha = 1.0f;
+        readonly float _alpha = 1.0f;
 
         [SerializeField]
         [Range(0f, 1f), ShowIf("@_changeStartValue")]
-        float _alphaStart = 0.0f;
+        readonly float _alphaStart = 0.0f;
 
-        public override string displayName { get { return $"{(_isSelf ? "CanvasGroup (This)" : _owner)}: DOFade"; } }
+        public override string displayName => $"{(_isSelf ? "CanvasGroup (This)" : _owner)}: DOFade";
 
         protected override Tween GetTween(AnimationSequence animationSequence)
         {

@@ -1,20 +1,20 @@
+using CodeSketch.Core.Extensions;
 using DG.Tweening;
 using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public class AnimationSequenceStepGraphicColor : AnimationSequenceStepAction<Graphic>
     {
-        [SerializeField]
-        Color _value = Color.white;
+        [SerializeField] readonly Color _value = Color.white;
 
         [SerializeField]
         [ShowIf("@_changeStartValue")]
-        Color _valueStart = Color.white;
+        readonly Color _valueStart = Color.white;
 
-        public override string displayName { get { return $"{(_isSelf ? "Graphic (This)" : _owner)}: DOColor"; } }
+        public override string displayName => $"{(_isSelf ? "Graphic (This)" : _owner)}: DOColor";
 
         protected override Tween GetTween(AnimationSequence animationSequence)
         {

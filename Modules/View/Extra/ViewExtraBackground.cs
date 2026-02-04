@@ -1,8 +1,9 @@
+using CodeSketch.Core.Extensions;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace GOCD.Framework
+namespace CodeSketch.UIView
 {
     [System.Serializable]
     public class ViewExtraBackground : ViewExtra
@@ -11,7 +12,7 @@ namespace GOCD.Framework
         [SerializeField] Sprite _sprite;
         [SerializeField] Color _color = new Color(0f, 0f, 0f, 0.8f);
 
-        public override string displayName => "Background";
+        public override string DisplayName => $"View/Background";
 
         GameObject _objBG;
 
@@ -37,7 +38,7 @@ namespace GOCD.Framework
 
         void SpawnBackground(View view)
         {
-            _objBG = new GameObject($"{view.name} Background");
+            _objBG = new GameObject(DisplayName);
 
             RectTransform rect = _objBG.AddComponent<RectTransform>();
             rect.SetParent(view.TransformCached.parent);

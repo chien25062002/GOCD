@@ -3,7 +3,7 @@ using Sirenix.OdinInspector;
 using UnityEngine;
 using UnityEngine.Events;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public class AnimationSequenceStepCallback : AnimationSequenceStep
     {
@@ -17,7 +17,7 @@ namespace GOCD.Framework
         [SerializeField]
         UnityEvent _callback;
 
-        public override string displayName { get { return "Callback"; } }
+        public override string displayName => "Callback";
 
         public override void AddToSequence(AnimationSequence animationSequence)
         {

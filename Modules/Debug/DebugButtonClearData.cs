@@ -1,6 +1,7 @@
+using CodeSketch.Data;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.Debug
 {
     public class DebugButtonClearData : DebugButton
     {
@@ -8,7 +9,7 @@ namespace GOCD.Framework
         {
             base.Button_OnClick();
 
-            GOCDDataBlockHelper.DeleteAllInDevice();
+            DataFileHandler.DeleteAllInDevice();
 
             Application.Quit();
         }

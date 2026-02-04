@@ -2,14 +2,15 @@
 // Includes suppressEvent in ModifyStat and one-shot feedback logic
 
 using System.Collections.Generic;
+using CodeSketch.Data;
 using UnityEngine;
 
-namespace GOCD.Framework.Module.Stat
+namespace CodeSketch.Modules.StatSystem
 {
     public class StatController : IStatController
     {
-        Dictionary<string, GOCDValue<float>> _baseValues = new();
-        Dictionary<string, GOCDValue<float>> _stats = new();
+        Dictionary<string, DataValue<float>> _baseValues = new();
+        Dictionary<string, DataValue<float>> _stats = new();
         List<IStatModifier> _modifiers = new();
         Dictionary<string, int> _activeOverTimeCounts = new();
         Dictionary<string, float> _deltaBuffer = new();
@@ -17,7 +18,7 @@ namespace GOCD.Framework.Module.Stat
         public System.Action<string, bool> OnOverTimeActiveChanged;
         public System.Action<string, int> OnStatModified;
 
-        public void LinkStat(string statId, GOCDValue<float> externalValue)
+        public void LinkStat(string statId, DataValue<float> externalValue)
         {
             if (!_stats.ContainsKey(statId))
                 _stats.Add(statId, externalValue);
@@ -25,20 +26,20 @@ namespace GOCD.Framework.Module.Stat
                 _stats[statId] = externalValue;
         }
 
-        public void LinkBaseStat(string statId, GOCDValue<float> baseValue)
+        public void LinkBaseStat(string statId, DataValue<float> baseValue)
         {
             _baseValues[statId] = baseValue;
         }
 
         public float GetBaseValue(string statId)
         {
-            return _baseValues.TryGetValue(statId, out var val) ? val.value : 0f;
+            return _baseValues.TryGetValue(statId, out var val) ? val.Value : 0f;
         }
 
         public float GetStat(string statId)
         {
             if (_stats.TryGetValue(statId, out var val))
-                return val.value;
+                return val.Value;
             return 0f;
         }
         
@@ -51,16 +52,15 @@ namespace GOCD.Framework.Module.Stat
         {
             if (_stats.TryGetValue(statId, out var cvalue))
             {
-                float oldValue = cvalue.value;
-                cvalue.value += value;
+                float oldValue = cvalue.Value;
+                cvalue.Value += value;
 
                 if (_baseValues.TryGetValue(statId, out var baseVal))
-                    cvalue.value = Mathf.Min(cvalue.value, baseVal.value);
+                    cvalue.Value = Mathf.Min(cvalue.Value, baseVal.Value);
 
-                float actualDelta = cvalue.value - oldValue;
+                float actualDelta = cvalue.Value - oldValue;
 
-                if (!_deltaBuffer.ContainsKey(statId))
-                    _deltaBuffer[statId] = 0f;
+                _deltaBuffer.TryAdd(statId, 0f);
 
                 _deltaBuffer[statId] += actualDelta;
 
@@ -73,14 +73,14 @@ namespace GOCD.Framework.Module.Stat
             }
             else
             {
-                var newValue = new GOCDValue<float>(value);
+                var newValue = new DataValue<float>(value);
 
                 if (_baseValues.TryGetValue(statId, out var baseVal))
-                    newValue.value = Mathf.Min(value, baseVal.value);
+                    newValue.Value = Mathf.Min(value, baseVal.Value);
 
                 _stats.Add(statId, newValue);
 
-                int intValue = Mathf.FloorToInt(newValue.value);
+                int intValue = Mathf.FloorToInt(newValue.Value);
                 if (intValue != 0 && !suppressEvent)
                     OnStatModified?.Invoke(statId, intValue);
             }
@@ -100,8 +100,7 @@ namespace GOCD.Framework.Module.Stat
                 {
                     FireOneShotStatModifiedFeedback(modifier);
 
-                    if (!_activeOverTimeCounts.ContainsKey(ot.StatId))
-                        _activeOverTimeCounts[ot.StatId] = 0;
+                    _activeOverTimeCounts.TryAdd(ot.StatId, 0);
 
                     _activeOverTimeCounts[ot.StatId]++;
                     if (_activeOverTimeCounts[ot.StatId] == 1)

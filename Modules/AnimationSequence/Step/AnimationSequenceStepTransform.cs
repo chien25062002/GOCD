@@ -1,7 +1,7 @@
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public abstract class AnimationSequenceStepTransform : AnimationSequenceStepAction<Transform>
     {

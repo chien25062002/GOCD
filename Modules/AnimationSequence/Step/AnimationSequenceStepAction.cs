@@ -2,7 +2,7 @@ using DG.Tweening;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public abstract class AnimationSequenceStepAction<T> : AnimationSequenceStep where T : class
     {
@@ -33,7 +33,7 @@ namespace GOCD.Framework
         protected float _duration = 1.0f;
 
         [SerializeField]
-        protected Ease _ease = Ease.Linear;
+        protected readonly Ease _ease = Ease.Linear;
 
         [SerializeField, HorizontalGroup("Update")]
         [InlineButton("@_isIndependentUpdate = true", Label = "Timescale Based", ShowIf = ("@_isIndependentUpdate == false"))]
@@ -41,7 +41,7 @@ namespace GOCD.Framework
         protected UpdateType _updateType = UpdateType.Normal;
 
         [SerializeField, HideInInspector]
-        protected bool _isIndependentUpdate = false;
+        protected readonly bool _isIndependentUpdate = false;
 
         [SerializeField]
         [MinValue(0), HorizontalGroup("Loop")]

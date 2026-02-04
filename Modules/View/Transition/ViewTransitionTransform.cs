@@ -2,7 +2,7 @@ using DG.Tweening;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.UIView
 {
     public abstract class ViewTransitionTransform : ViewTransition
     {

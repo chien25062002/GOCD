@@ -4,7 +4,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace GOCD.Framework.Module.HealthBar
+namespace CodeSketch.Modules.HealthSystem
 {
     public class HealthBarUI : HealthBarBase
     {

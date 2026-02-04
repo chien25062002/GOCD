@@ -1,0 +1,16 @@
+{
+    "name": "CodeSketch.Data",
+    "rootNamespace": "CodeSketch.Data",
+    "references": [
+        "GUID:4a406af209b8747498480304eba12888"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

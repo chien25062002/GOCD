@@ -1,11 +1,11 @@
 using DG.Tweening;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.UIView
 {
     public class ViewTransitionTransformScale : ViewTransitionTransform
     {
-        public override string displayName { get { return "RectTransform Scale"; } }
+        public override string DisplayName => "RectTransform Scale";
 
         public override Tween GetTween(ViewTransitionEntity entity, float duration)
         {

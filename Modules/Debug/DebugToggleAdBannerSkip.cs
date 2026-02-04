@@ -1,13 +1,13 @@
-using GOCD.Framework.Data;
+using CodeSketch.Data;
 
-namespace GOCD.Framework
+namespace CodeSketch.Debug
 {
     public class DebugToggleAdBannerSkip : DebugToggle
     {
         protected override bool isOn 
         { 
-            get => DataMaster.AdsBannerSkip.value;
-            set => DataMaster.AdsBannerSkip.value = value;
+            get => DataMaster.AdsBannerSkip.Value;
+            set => DataMaster.AdsBannerSkip.Value = value;
         }
     }
 }

@@ -1,13 +1,13 @@
-using GOCD.Framework.Data;
+using CodeSketch.Data;
 
-namespace GOCD.Framework
+namespace CodeSketch.Debug
 {
     public class DebugToggleUIHidden : DebugToggle
     {
         protected override bool isOn 
         { 
-            get => DataMaster.UiHidden.value;
-            set => DataMaster.UiHidden.value = value;
+            get => DataMaster.UIHidden.Value;
+            set => DataMaster.UIHidden.Value = value;
         }
     }
 }

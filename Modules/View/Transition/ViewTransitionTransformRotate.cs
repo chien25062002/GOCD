@@ -1,13 +1,13 @@
 using DG.Tweening;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.UIView
 {
     public class ViewTransitionTransformRotate : ViewTransitionTransform
     {
-        [SerializeField] RotateMode _rotateMode = RotateMode.FastBeyond360;
+        [SerializeField] readonly RotateMode _rotateMode = RotateMode.FastBeyond360;
 
-        public override string displayName { get { return "Transform Rotate"; } }
+        public override string DisplayName => "Transform Rotate";
 
         public override Tween GetTween(ViewTransitionEntity entity, float duration)
         {

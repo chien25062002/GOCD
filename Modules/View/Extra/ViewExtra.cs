@@ -1,12 +1,12 @@
 using DG.Tweening;
 using System;
 
-namespace GOCD.Framework
+namespace CodeSketch.UIView
 {
     [Serializable]
     public abstract class ViewExtra
     {
-        public virtual string displayName { get; }
+        public virtual string DisplayName { get; }
 
         public void Apply(View view)
         {
@@ -15,7 +15,7 @@ namespace GOCD.Framework
             view.sequence.Join(tween);
         }
 
-        protected virtual Tween GetTween(View popup, float duration)
+        protected virtual Tween GetTween(View view, float duration)
         {
             return null;
         }

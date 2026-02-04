@@ -1,11 +1,11 @@
 using DG.Tweening;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public class AnimationSequenceStepTransformScale : AnimationSequenceStepTransform
     {
-        public override string displayName { get { return $"{(_isSelf ? "Transform (This)" : _owner)}: DOScale"; } }
+        public override string displayName => $"{(_isSelf ? "Transform (This)" : _owner)}: DOScale";
 
         protected override Tween GetTween(AnimationSequence animationSequence)
         {

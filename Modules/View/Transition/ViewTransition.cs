@@ -1,12 +1,12 @@
 using DG.Tweening;
 using System;
 
-namespace GOCD.Framework
+namespace CodeSketch.UIView
 {
     [Serializable]
     public abstract class ViewTransition
     {
-        public virtual string displayName { get; }
+        public virtual string DisplayName { get; }
 
         public virtual Tween GetTween(ViewTransitionEntity entity, float duration)
         {

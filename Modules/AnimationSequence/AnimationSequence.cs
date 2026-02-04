@@ -1,10 +1,11 @@
 ﻿using DG.Tweening;
 using Sirenix.OdinInspector;
 using System;
+using CodeSketch.Mono;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public class AnimationSequence : MonoBase
     {
@@ -105,8 +106,10 @@ namespace GOCD.Framework
             _sequence?.Kill();
         }
 
-        void OnEnable()
+        protected override void OnEnable()
         {
+            base.OnEnable();
+            
             // If no action flagged on enable, we shouldn't init sequence
             if(_actionOnEnable != 0)
                 InitSequence();
@@ -124,8 +127,10 @@ namespace GOCD.Framework
                 _sequence?.PlayBackwards();
         }
 
-        void OnDisable()
+        protected override void OnDisable()
         {
+            base.OnDisable();
+            
             if (_actionOnDisable.HasFlag(ActionOnDisable.Pause))
                 _sequence?.Pause();
 

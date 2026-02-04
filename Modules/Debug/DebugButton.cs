@@ -1,10 +1,9 @@
-namespace GOCD.Framework
+using CodeSketch.Core.UI;
+
+namespace CodeSketch.Debug
 {
     public class DebugButton : UIButtonBase
     {
-        protected override void Awake()
-        {
-            base.Awake();
-        }
+        
     }
 }

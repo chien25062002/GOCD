@@ -3,12 +3,16 @@ using UnityEngine;
 using DG.Tweening;
 using UnityEngine.Events;
 using Sirenix.OdinInspector;
-using Cysharp.Threading.Tasks;
 using System.Threading;
 
-namespace GOCD.Framework {
+using CodeSketch.Mono;
+using Cysharp.Threading.Tasks;
+
+namespace CodeSketch.UIView
+{
     [RequireComponent(typeof(CanvasGroup))]
-    public sealed class View : MonoCached {
+    public sealed class View : MonoBase 
+    {
         [Title("Config")]
         [MinValue(0f)]
         [SerializeField] float _openDuration = 0.1f;

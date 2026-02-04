@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace GOCD.Framework.Module.Stat
+namespace CodeSketch.Modules.StatSystem
 {
     public interface IOverTimeModifier
     {

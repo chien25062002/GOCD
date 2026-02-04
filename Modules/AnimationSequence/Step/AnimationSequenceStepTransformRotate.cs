@@ -2,14 +2,14 @@ using DG.Tweening;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     public class AnimationSequenceStepTransformRotate : AnimationSequenceStepTransform
     {
         [VerticalGroup("Value")]
         [SerializeField] RotateMode _rotateMode = RotateMode.Fast;
 
-        public override string displayName { get { return $"{(_isSelf ? "Transform (This)" : _owner)}: DOLocalRotate"; } }
+        public override string displayName => $"{(_isSelf ? "Transform (This)" : _owner)}: DOLocalRotate";
 
         protected override Tween GetTween(AnimationSequence animationSequence)
         {

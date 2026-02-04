@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace GOCD.Framework.Module.Stat
+namespace CodeSketch.Modules.StatSystem
 {
     public class FlatModifier : IStatModifier
     {

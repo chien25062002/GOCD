@@ -1,6 +1,6 @@
 using System;
 
-namespace GOCD.Framework.Module.Stat
+namespace CodeSketch.Modules.StatSystem
 {
     [Serializable]
     public class StatModifierSaveData

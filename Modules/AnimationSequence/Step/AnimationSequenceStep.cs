@@ -1,6 +1,6 @@
 using System;
 
-namespace GOCD.Framework
+namespace CodeSketch.Utilities.Animations
 {
     [Serializable]
     public abstract class AnimationSequenceStep

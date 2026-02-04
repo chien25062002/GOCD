@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace GOCD.Framework
+namespace CodeSketch.Debug
 {
     public class DebugToggle : DebugButton
     {
@@ -24,7 +24,7 @@ namespace GOCD.Framework
 
         void UpdateUI()
         {
-            button.image.color = isOn ? Color.green : Color.red;
+            Button.image.color = isOn ? Color.green : Color.red;
         }
     }
 }

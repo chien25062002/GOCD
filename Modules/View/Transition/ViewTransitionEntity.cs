@@ -1,10 +1,13 @@
+using System;
 using DG.Tweening;
 using Sirenix.OdinInspector;
 using UnityEngine;
 
-namespace GOCD.Framework
+using CodeSketch.Mono;
+
+namespace CodeSketch.UIView
 {
-    public class ViewTransitionEntity : MonoCached
+    public class ViewTransitionEntity : MonoBase
     {
         [Title("Config")]
         [Range(0.1f, 1f)]
@@ -13,8 +16,8 @@ namespace GOCD.Framework
         [CustomValueDrawer("GUIDrawInsertTime")]
         [SerializeField] float _insertTime = 0f;
 
-        [ListDrawerSettings(AddCopiesLastElement = true, ListElementLabelName = "displayName")]
-        [SerializeReference] ViewTransition[] _transitions = new ViewTransition[0];
+        [ListDrawerSettings(AddCopiesLastElement = true, ListElementLabelName = "DisplayName")]
+        [SerializeReference] ViewTransition[] _transitions = Array.Empty<ViewTransition>();
 
         RectTransform _rectTransform;
 
