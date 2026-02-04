@@ -1,6 +1,6 @@
 {
     "name": "CodeSketch.Settings",
-    "rootNamespace": "",
+    "rootNamespace": "CodeSketch.Settings",
     "references": [
         "GUID:766251132c9ec2b4a82e8cd7b4137221",
         "GUID:4a406af209b8747498480304eba12888"

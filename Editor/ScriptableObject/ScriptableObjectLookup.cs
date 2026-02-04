@@ -23,14 +23,17 @@ namespace CodeSketch.Editor.Scriptable
         {
             List<string> assemblyNames = new List<string>
             {
-                "Assembly-CSharp",
-                "CodeSketch"
+                "Assembly-CSharp"
             };
 
             // Các subfolder muốn bỏ qua khi scan asmdef
             string[] ignoreSubFolders =
             {
-                "Plugins"
+                "CodeSketch/Editor",
+                "CodeSketch/Modules",
+                "CodeSketch/Essentials/Core/ScriptableObject/",
+                "Plugins/OdinSerializer",
+                "Plugins/StompyRobot"
             };
 
             LoadFromFolder(ref assemblyNames, "_Game/", ignoreSubFolders);

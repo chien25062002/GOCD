@@ -29,10 +29,10 @@ namespace CodeSketch.Editor
         readonly Dictionary<string, bool> _fold = new();
         readonly Dictionary<object, bool> _goRaw = new(); // toggle Raw _value cho GOCDValue<T>
 
-        [MenuItem("CodeSketch/Data/Window Editting", false)]
+        [MenuItem("CodeSketch/Data/Window Data Preview", false)]
         static void Open()
         {
-            var w = GetWindow<Window_DataEditting>("CodeSketch Data Viewer");
+            var w = GetWindow<Window_DataEditting>("CodeSketch Data Preview");
             w.minSize = new Vector2(900, 550);
             w.Init();
             w.Show();

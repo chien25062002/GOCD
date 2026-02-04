@@ -12,13 +12,7 @@ namespace CodeSketch.Core
         [SerializeField] GameObject _UINotificationText;
         [SerializeField] GameObject _popupDebug;
 
-        
-        [Title("View")]
-        [SerializeField] AssetReference _internetCheck;
-        
         public static GameObject UINotificationText => Instance._UINotificationText;
         public static GameObject PopupDebug => Instance._popupDebug;
-        
-        public static AssetReference InternetCheck => Instance._internetCheck;
     }
 }

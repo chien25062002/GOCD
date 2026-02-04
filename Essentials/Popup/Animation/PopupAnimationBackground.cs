@@ -8,8 +8,8 @@ namespace CodeSketch.UIPopup
 {
     public class PopupAnimationBackground : PopupAnimation
     {
-        [SerializeField] readonly bool _closeOnClick = true;
-        [SerializeField] readonly Color _color = new Color(0f, 0f, 0f, 0.5f);
+        [SerializeField] bool _closeOnClick = true;
+        [SerializeField] Color _color = new Color(0f, 0f, 0f, 0.94f);
 
         public override string displayName => "Background";
 

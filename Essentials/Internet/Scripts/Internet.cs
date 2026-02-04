@@ -1,4 +1,3 @@
-#define INTERNET_CHECK
 using System;
 using System.Threading;
 using CodeSketch.Core.Async;
@@ -10,15 +9,9 @@ using CodeSketch.UIPopup;
 
 namespace CodeSketch.Internet
 {
-    /// <summary>
-    /// Internet checker (refactored).
-    /// - Check internet continuously
-    /// - Spawn / close popup prefab only
-    /// - No view script, no registry, no atomic guard
-    /// </summary>
     public static class Internet
     {
-#if INTERNET_CHECK
+#if CODESKETCH_INTERNET
         public static bool IsEnabled { get; private set; }
 
         static Popup InternetPopup;
@@ -30,13 +23,6 @@ namespace CodeSketch.Internet
         static void Init()
         {
             StartCheckLoop();
-
-            PopupManager.EventPopupOpened += Popup_EventOpened;
-        }
-
-        static void Popup_EventOpened(Popup popup)
-        {
-            
         }
 
         // ================= LOOP =================
@@ -45,7 +31,9 @@ namespace CodeSketch.Internet
         {
             CancelToken?.Cancel();
             CancelToken = new CancelToken();
-            CheckLoop(CancelToken.Token).AttachExternalCancellation(CancelToken.Token);
+
+            CheckLoop(CancelToken.Token)
+                .AttachExternalCancellation(CancelToken.Token);
         }
 
         static async UniTask CheckLoop(CancellationToken token)
@@ -55,11 +43,23 @@ namespace CodeSketch.Internet
                 bool hasInternet = await CheckOnce(token);
 
                 if (hasInternet)
+                {
                     ClosePopup();
+
+                    // ✅ ONLINE → nghỉ theo interval
+                    await UniTask.Delay(
+                        TimeSpan.FromSeconds(InternetSettings.CheckInterval),
+                        cancellationToken: token
+                    );
+                }
                 else
+                {
                     OpenPopup();
 
-                await UniTask.Delay(TimeSpan.FromSeconds(InternetSettings.CheckInterval), cancellationToken: token);
+                    // ❗ OFFLINE + POPUP → request tiếp NGAY
+                    // Không delay, không await frame
+                    await UniTask.Yield(PlayerLoopTiming.Update, token);
+                }
             }
         }
 
@@ -92,7 +92,10 @@ namespace CodeSketch.Internet
                 return;
 
             InternetPopup = PopupManager.Create(InternetSettings.Popup);
-            CodeSketchDebug.LogRuntime("[Internet] Offline → popup opened", Color.green);
+            CodeSketchDebug.LogRuntime(
+                "[Internet] Offline → popup opened",
+                Color.yellow
+            );
         }
 
         static void ClosePopup()
@@ -102,10 +105,15 @@ namespace CodeSketch.Internet
 
             InternetPopup.Close();
             InternetPopup = null;
-            CodeSketchDebug.LogRuntime("[Internet] Online → popup closed");
+
+            CodeSketchDebug.LogRuntime(
+                "[Internet] Online → popup closed",
+                Color.green
+            );
         }
 
         // ================= PUBLIC API =================
+
         public static bool IsPopupShowing()
         {
             return InternetPopup != null;

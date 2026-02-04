@@ -6,9 +6,9 @@ namespace CodeSketch.UIPopup
     public class PopupAnimationScale : PopupAnimation
     {
         [SerializeField] Transform _target;
-        [SerializeField] readonly float _scaleStart = 0.3f;
-        [SerializeField] readonly float _scaleEnd = 1.0f;
-        [SerializeField] readonly Ease _ease = Ease.OutBack;
+        [SerializeField] float _scaleStart = 0.3f;
+        [SerializeField] float _scaleEnd = 1.0f;
+        [SerializeField] Ease _ease = Ease.OutBack;
 
         public override string displayName => "Scale";
 
